@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>라스트 스쿼드 — 로봇 방어전</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23142033'/%3E%3Ccircle cx='16' cy='11' r='5' fill='%23ffcf4a'/%3E%3Crect x='8' y='17' width='16' height='9' rx='3' fill='%233f7ddc'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="stage"></canvas>
+
+  <!-- 전투 HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-stage"><span id="hud-stage-name">1구역</span></div>
+      <div class="hud-progress"><div id="hud-progress-fill"></div></div>
+      <div class="hud-coin">🔩 <span id="hud-coin">0</span></div>
+    </div>
+    <div id="boss-bar" class="hidden">
+      <div class="boss-name">고철 대장 로봇</div>
+      <div class="boss-track"><div id="boss-fill"></div></div>
+    </div>
+    <div class="hud-bottom">
+      <div id="hud-squad" class="squad-chip">👥 <span id="hud-squad-count">10</span></div>
+      <div id="hud-tip" class="hud-tip">드래그 · ← → 로 이동</div>
+    </div>
+  </div>
+
+  <!-- 기지 화면 -->
+  <section id="screen-home" class="screen">
+    <h1 class="title">라스트 스쿼드</h1>
+    <p class="subtitle">게이트를 골라 병력을 불리고, 고철 로봇 군단을 막아내자</p>
+    <div class="home-stats">
+      <div class="stat"><span class="stat-label">보유 부품</span><span class="stat-value">🔩 <b id="home-coin">0</b></span></div>
+      <div class="stat"><span class="stat-label">최고 구역</span><span class="stat-value">🏁 <b id="home-best">1</b></span></div>
+      <div class="stat"><span class="stat-label">시작 병력</span><span class="stat-value">👥 <b id="home-start">10</b></span></div>
+    </div>
+    <button id="btn-play" class="btn btn-primary btn-big">출동! <span id="btn-play-stage">1구역</span></button>
+    <div class="home-row">
+      <button id="btn-upgrade" class="btn">🔧 병력 강화</button>
+      <button id="btn-stages" class="btn">🗺️ 구역 선택</button>
+    </div>
+    <p class="hint">조작: 마우스 드래그 / 손가락 / ← → 키 · 사격은 자동</p>
+  </section>
+
+  <!-- 업그레이드 -->
+  <section id="screen-upgrade" class="screen hidden">
+    <h2 class="title small">병력 강화</h2>
+    <div class="coin-line">보유 부품 🔩 <b id="upgrade-coin">0</b></div>
+    <div id="upgrade-list" class="upgrade-list"></div>
+    <button class="btn btn-back" data-back>← 기지로</button>
+  </section>
+
+  <!-- 구역 선택 -->
+  <section id="screen-stages" class="screen hidden">
+    <h2 class="title small">구역 선택</h2>
+    <div id="stage-list" class="stage-list"></div>
+    <button class="btn btn-back" data-back>← 기지로</button>
+  </section>
+
+  <!-- 결과 -->
+  <section id="screen-result" class="screen hidden">
+    <h2 id="result-title" class="title small">구역 돌파!</h2>
+    <div id="result-stars" class="stars"></div>
+    <div id="result-lines" class="result-lines"></div>
+    <button id="btn-result-main" class="btn btn-primary btn-big">다음 구역</button>
+    <button id="btn-result-retry" class="btn">🔄 다시 도전</button>
+    <button id="btn-result-home" class="btn btn-back">🏠 기지로</button>
+  </section>
+</div>
+
+<script src="src/util.js"></script>
+<script src="src/config.js"></script>
+<script src="src/upgrades.js"></script>
+<script src="src/save.js"></script>
+<script src="src/squad.js"></script>
+<script src="src/gates.js"></script>
+<script src="src/stage.js"></script>
+<script src="src/run.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
