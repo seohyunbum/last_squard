@@ -177,7 +177,7 @@ test('저장값이 망가져 있어도 기지가 열린다', () => {
     const state = LW.save.makeRepository(storage).load();
     assert.ok(state && typeof state === 'object', `깨진 저장값에서 상태를 못 만들었다: ${raw}`);
     assert.ok(Number.isFinite(state.coins) && state.coins >= 0, `부품이 이상하다: ${state.coins}`);
-    assert.ok(Number.isFinite(state.bestStage) && state.bestStage >= 1, `최고 구역이 이상하다: ${state.bestStage}`);
+    assert.ok(Number.isFinite(state.bestChapter) && state.bestChapter >= 1, `최고 챕터가 이상하다: ${state.bestChapter}`);
     const resolved = LW.upgrades.resolve(state.levels || {});
     assert.ok(Number.isFinite(resolved.startCount) && resolved.startCount > 0, '시작 병력이 이상하다');
   }
