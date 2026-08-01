@@ -485,8 +485,20 @@
     }
   }
 
-  /** @param input {{targetX:number}} */
+  /** 한 프레임에 허용하는 최대 시간. 이보다 크면 장애물을 뚫고 지나간다. */
+  const MAX_STEP = 1 / 20;
+
+  /**
+   * 한 프레임 진행.
+   *
+   * `dt` 와 `input` 은 바깥(브라우저 이벤트·rAF)에서 온다. 탭이 백그라운드로 갔다 오거나
+   * 포인터 이벤트가 좌표를 안 줄 때 NaN·무한대가 섞여 들어올 수 있으므로 입구에서 정화한다.
+   * 한 프레임에 너무 큰 dt 가 들어오면 충돌 판정을 건너뛰며 지나가 버리므로 상한도 둔다.
+   *
+   * @param input {{targetX:number}}
+   */
   function update(run, dt, input) {
+    dt = Number.isFinite(dt) ? Math.max(0, Math.min(dt, MAX_STEP)) : 0;
     run.out.length = 0;
     if (run.phase === 'won' || run.phase === 'lost') {
       updateParticles(run, dt);
@@ -500,7 +512,8 @@
     const cfg = LW.config;
     const squad = run.squad;
     const limit = cfg.world.roadHalfWidth - squad.halfWidth();
-    squad.targetX = U.clamp(input.targetX, -limit, limit);
+    const wanted = input && Number.isFinite(input.targetX) ? input.targetX : squad.x;
+    squad.targetX = U.clamp(wanted, -limit, limit);
     squad.x = U.damp(squad.x, squad.targetX, cfg.squad.moveSpeed * squad.mods.speedMult, dt);
 
     const prevDist = run.dist;

@@ -3,7 +3,15 @@
   'use strict';
   const LW = (global.LW = global.LW || {});
 
+  /**
+   * 범위로 자른다. **숫자가 아니면 `lo` 로 떨어뜨린다.**
+   *
+   * 그냥 비교만 하면 NaN 이 그대로 통과한다 — `NaN < lo` 도 `NaN > hi` 도 false 이기 때문이다.
+   * 이 함수는 병력 수·부대 위치·총알 수를 모두 지나가므로, 여기가 뚫리면 NaN 하나가
+   * 게임 전체를 오염시킨다(실측: 입력에 NaN 을 넣으면 부대 x 가 NaN 이 되어 사라졌다).
+   */
   function clamp(v, lo, hi) {
+    if (!Number.isFinite(v)) return lo;
     return v < lo ? lo : v > hi ? hi : v;
   }
 
