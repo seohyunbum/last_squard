@@ -30,6 +30,7 @@
     boss: 3.5,
     gate: 2.7,
     barricade: 1.05,
+    gun: 0.5,
     coin: 0.45,
   };
 
@@ -72,6 +73,17 @@
   const enemyBolt = { radius: 0.2, cost: 1, speed: 7.5 };
 
   const barricade = { hp: 60, halfWidth: 1.15, thickness: 0.5, crushCost: 6 };
+
+  /** 드럼통: 쏘면 터지고 위에 얹힌 총이 노면에 떨어진다. 그냥 박으면 병력을 잃는다. */
+  const barrel = { hp: 22, radius: 0.62, height: 1.4, crushCost: 4, gunZ: 1.95 };
+
+  /** 총 픽업 — 먹으면 일정 시간 연사가 빨라진다 (겹쳐 먹으면 더 빨라짐). */
+  const weapon = {
+    pickupRadius: 0.55,
+    fireBonusPerStack: 0.35, // 연사 배율에 더해지는 값
+    maxStacks: 3,
+    duration: 7, // 초
+  };
 
   const scaling = {
     /** 구역이 오를수록 적 체력·수량이 는다. */
@@ -122,6 +134,8 @@
     boss,
     enemyBolt,
     barricade,
+    barrel,
+    weapon,
     scaling,
     stages,
     pools,

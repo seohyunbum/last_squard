@@ -6,7 +6,7 @@
   const canvas = document.getElementById('stage');
   const ctx = canvas.getContext('2d');
   const camera = LW.render.makeCamera(canvas);
-  const repo = LW.save.makeRepository(global.localStorage || memoryStorage());
+  const repo = LW.save.makeRepository(safeStorage());
   let save = repo.load();
 
   let run = null;
@@ -17,6 +17,18 @@
   let dragOriginX = 0;
   let dragOriginTarget = 0;
   const keys = { left: false, right: false };
+
+  /** localStorage 가 막혀 있으면(공유 링크·시크릿 모드) 메모리에만 저장한다. */
+  function safeStorage() {
+    try {
+      const s = global.localStorage;
+      s.setItem('__probe__', '1');
+      s.removeItem('__probe__');
+      return s;
+    } catch (err) {
+      return memoryStorage();
+    }
+  }
 
   function memoryStorage() {
     const map = {};

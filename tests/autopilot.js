@@ -24,6 +24,12 @@ function makeAutopilot(LW) {
       if (d < 0 || d > 10) continue;
       if (best === null || d < best.d) best = { d: d, x: bar.x };
     }
+    for (const barrel of run.barrels) {
+      if (barrel.broken || barrel.passed) continue;
+      const d = barrel.y - run.dist;
+      if (d < 0 || d > 9) continue;
+      if (best === null || d < best.d) best = { d: d, x: barrel.x };
+    }
     return best ? best.x : null;
   }
 

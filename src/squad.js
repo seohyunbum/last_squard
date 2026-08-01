@@ -50,6 +50,8 @@
       fireTimer: 0,
       formation: [],
       mods: mods,
+      buffTimer: 0, // 총 픽업 남은 시간
+      buffStacks: 0,
       /** 이번 볼리의 총 피해량 (병력 수 x 1명당 화력) */
       volleyDamage() {
         return this.count * cfg.damagePerUnit * this.mods.damageMult;
@@ -58,8 +60,30 @@
       volleyBullets() {
         return LW.util.clamp(Math.ceil(this.count / 4), 1, cfg.maxBulletsPerVolley);
       },
+      /** 총 픽업으로 더해지는 연사 배율 */
+      fireBonus() {
+        if (this.buffTimer <= 0) return 0;
+        return this.buffStacks * LW.config.weapon.fireBonusPerStack;
+      },
       interval() {
-        return cfg.fireInterval / this.mods.fireMult;
+        return cfg.fireInterval / (this.mods.fireMult + this.fireBonus());
+      },
+      /** 총을 먹었다 — 시간 갱신 + 중첩 (상한까지) */
+      pickUpWeapon() {
+        const w = LW.config.weapon;
+        this.buffStacks = Math.min(w.maxStacks, this.buffStacks + 1);
+        this.buffTimer = w.duration;
+        return this.buffStacks;
+      },
+      tickBuff(dt) {
+        if (this.buffTimer <= 0) return false;
+        this.buffTimer -= dt;
+        if (this.buffTimer <= 0) {
+          this.buffTimer = 0;
+          this.buffStacks = 0;
+          return true; // 이번 프레임에 끝났다
+        }
+        return false;
       },
       add(n) {
         this.count = LW.util.clamp(this.count + n, 0, cfg.maxCount);

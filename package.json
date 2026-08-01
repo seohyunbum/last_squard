@@ -9,7 +9,8 @@
     "balance": "node scripts/balance-check.js",
     "smoke": "node scripts/browser-smoke.js",
     "verify": "npm run test && npm run balance",
-    "verify:full": "npm run verify && npm run smoke"
+    "verify:full": "npm run verify && npm run smoke && npm run build",
+    "build": "node scripts/build-single.js"
   },
   "devDependencies": {
     "playwright": "^1.61.1"

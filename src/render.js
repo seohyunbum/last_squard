@@ -298,6 +298,16 @@
       const d = depthOf(cam, c.y);
       if (d > near && d < 60) add(cam, 'coin', c, d);
     }
+    for (const barrel of run.barrels) {
+      if (barrel.broken) continue;
+      const d = depthOf(cam, barrel.y);
+      if (d > near && d < 90) add(cam, 'barrel', barrel, d);
+    }
+    for (const gun of run.guns) {
+      if (gun.taken) continue;
+      const d = depthOf(cam, gun.y);
+      if (d > near && d < 60) add(cam, 'gun', gun, d);
+    }
     for (const e of run.enemies) {
       if (!e.active) continue;
       const d = depthOf(cam, e.y);
@@ -376,9 +386,10 @@
     // 선두 줄 총구 화염
     const squad = run.squad;
     if (f.y === 0 && squad.fireTimer > squad.interval() - 0.06) {
-      ctx.fillStyle = 'rgba(255,232,150,0.95)';
+      const hot = squad.buffTimer > 0;
+      ctx.fillStyle = hot ? 'rgba(255,196,90,0.98)' : 'rgba(255,232,150,0.95)';
       ctx.beginPath();
-      ctx.arc(x + body * 0.27, yTop + (yb - yTop) * 0.14, body * 0.3, 0, Math.PI * 2);
+      ctx.arc(x + body * 0.27, yTop + (yb - yTop) * 0.14, body * (hot ? 0.42 : 0.3), 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -512,7 +523,7 @@
       const x0 = px(cam, side === 0 ? -half : 0, s);
       const x1 = px(cam, side === 0 ? 0 : half, s);
       const w = x1 - x0;
-      const buff = LW.gates.isBuff(door);
+      const buff = LW.gates.looksBuff(door); // 페이크는 초록으로 보인다
       const used = gate.used;
       const picked = used && gate.chosen === side;
 
@@ -538,18 +549,12 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const cx = x0 + w / 2;
-      const cy = yt + H * 0.44;
+      const cy = yt + H * 0.5;
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillText(LW.gates.label(door), cx, cy + Math.max(1, fs * 0.05));
       ctx.fillStyle = '#ffffff';
       ctx.fillText(LW.gates.label(door), cx, cy);
 
-      if (!used) {
-        const preview = LW.gates.apply(run.squad.count, door);
-        ctx.font = '800 ' + Math.max(9, fs * 0.34) + 'px system-ui, sans-serif';
-        ctx.fillStyle = buff ? '#dcffe9' : '#ffdde1';
-        ctx.fillText('👥 ' + LW.util.formatCount(preview), cx, cy + fs * 0.6);
-      }
       ctx.globalAlpha = 1;
     }
   }
@@ -583,6 +588,88 @@
     ctx.fillRect(x0, yt - bh * 2, w, bh);
     ctx.fillStyle = '#ffd05e';
     ctx.fillRect(x0, yt - bh * 2, (w * Math.max(0, bar.hp)) / bar.maxHp, bh);
+  }
+
+  /** 드럼통 — 원통 몸체 + 띠, 위에 총이 얹혀 있다 */
+  function drawBarrel(ctx, cam, run, barrel, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const x = px(cam, barrel.x, s);
+    const yb = py(cam, s, 0);
+    const yt = py(cam, s, cfg.barrel.height);
+    const w = cfg.barrel.radius * 2 * s;
+    const H = yb - yt;
+
+    groundShadow(ctx, x, yb, s, cfg.barrel.radius * 0.95);
+
+    // 몸통
+    const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+    const base = barrel.flash > 0 ? '#ffffff' : '#d8613a';
+    g.addColorStop(0, shade(base, -0.3));
+    g.addColorStop(0.35, base);
+    g.addColorStop(1, shade(base, -0.45));
+    ctx.fillStyle = g;
+    ctx.fillRect(x - w / 2, yt, w, H);
+    // 위/아래 타원 (원통 느낌)
+    ctx.fillStyle = shade(base, 0.18);
+    ctx.beginPath();
+    ctx.ellipse(x, yt, w / 2, w * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 띠 두 줄
+    ctx.fillStyle = 'rgba(20,24,32,0.45)';
+    ctx.fillRect(x - w / 2, yt + H * 0.3, w, Math.max(1, H * 0.08));
+    ctx.fillRect(x - w / 2, yt + H * 0.62, w, Math.max(1, H * 0.08));
+    // 체력
+    if (barrel.hp < barrel.maxHp) {
+      const bh = Math.max(2, s * 0.04);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x - w / 2, yt - bh * 2.2, w, bh);
+      ctx.fillStyle = '#ffd05e';
+      ctx.fillRect(x - w / 2, yt - bh * 2.2, (w * Math.max(0, barrel.hp)) / barrel.maxHp, bh);
+    }
+
+    // 위에 얹힌 총 (쏴서 터뜨리면 떨어진다)
+    drawGunIcon(ctx, cam, barrel.x, cfg.barrel.gunZ + Math.sin(barrel.bob) * 0.06, s, 1);
+  }
+
+  /** 총 픽업 아이콘 — 노면에 떨어져 반짝이는 상태 */
+  function drawGun(ctx, cam, run, gun, d) {
+    const s = scaleAt(cam, d);
+    const z = LW.config.heights.gun + Math.sin(gun.bob) * 0.1;
+    // 빛기둥
+    const x = px(cam, gun.x, s);
+    const yb = py(cam, s, 0);
+    const grad = ctx.createLinearGradient(0, py(cam, s, z + 1.2), 0, yb);
+    grad.addColorStop(0, 'rgba(255,226,122,0)');
+    grad.addColorStop(1, 'rgba(255,226,122,0.35)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 0.28 * s, py(cam, s, z + 1.2), 0.56 * s, yb - py(cam, s, z + 1.2));
+    drawGunIcon(ctx, cam, gun.x, z, s, 1.15);
+  }
+
+  /** 총 모양 (토이 블래스터 실루엣) */
+  function drawGunIcon(ctx, cam, wx, z, s, boost) {
+    const x = px(cam, wx, s);
+    const y = py(cam, s, z);
+    const u = 0.24 * s * (boost || 1);
+
+    // 후광
+    ctx.fillStyle = 'rgba(255,226,122,0.28)';
+    ctx.beginPath();
+    ctx.arc(x, y, u * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#2d3648';
+    roundRect(ctx, x - u * 1.5, y - u * 0.5, u * 2.6, u, u * 0.3); // 총열
+    ctx.fill();
+    roundRect(ctx, x - u * 0.2, y - u * 0.2, u * 0.9, u * 1.5, u * 0.25); // 손잡이
+    ctx.fill();
+    ctx.fillStyle = '#ffcf4a';
+    roundRect(ctx, x - u * 1.5, y - u * 0.5, u * 0.9, u, u * 0.3); // 포인트 색
+    ctx.fill();
+    ctx.fillStyle = '#7fe0ff';
+    roundRect(ctx, x - u * 0.5, y - u * 1.15, u * 1.1, u * 0.6, u * 0.2); // 탄창(파랑)
+    ctx.fill();
   }
 
   function drawCoin(ctx, cam, run, c, d) {
@@ -649,7 +736,8 @@
       if (d < LW.config.camera.near) continue;
       const s = scaleAt(cam, d);
       const x = px(cam, p.x, s);
-      const y = py(cam, s, 1.5) - p.rise;
+      // 화면 아래 HUD(병력 수·버프 칩)와 겹치지 않게 위로 올려 잡는다
+      const y = Math.min(py(cam, s, 1.5), cam.h * 0.74) - p.rise;
       const t = p.life / p.maxLife;
       const fs = Math.max(14, cam.w * 0.075 * p.size * (1.25 - t * 0.25));
       ctx.globalAlpha = Math.min(1, t * 2.2);
@@ -698,6 +786,12 @@
           break;
         case 'coin':
           drawCoin(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'barrel':
+          drawBarrel(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'gun':
+          drawGun(ctx, cam, run, item.ref, item.d);
           break;
         case 'enemy':
           drawEnemy(ctx, cam, run, item.ref, item.d);

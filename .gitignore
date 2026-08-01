@@ -1,3 +1,4 @@
 node_modules/
 .smoke/
+dist/
 .DS_Store

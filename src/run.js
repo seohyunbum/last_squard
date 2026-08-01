@@ -42,6 +42,8 @@
       })),
       coins: [],
       barricades: [],
+      barrels: [],
+      guns: [], // 드럼통에서 떨어진 총 픽업
       gates: [],
       boss: null,
       out: [], // 이번 프레임에 벌어진 일 (사운드·HUD 용)
@@ -123,6 +125,11 @@
       } else if (ev.type === 'barricade') {
         run.barricades.push({
           x: ev.x, y: ev.y, hp: ev.hp, maxHp: ev.hp, broken: false, flash: 0,
+        });
+      } else if (ev.type === 'barrel') {
+        run.barrels.push({
+          x: ev.x, y: ev.y, hp: ev.hp, maxHp: ev.hp, broken: false, passed: false,
+          flash: 0, bob: Math.random() * 6,
         });
       } else if (ev.type === 'coin') {
         run.coins.push({ x: ev.x, y: ev.y, taken: false, bob: Math.random() * 6 });
@@ -222,12 +229,72 @@
         b.active = false;
         continue;
       }
+      // 드럼통 — 터지면 위의 총이 노면에 떨어진다
+      for (const barrel of run.barrels) {
+        if (barrel.broken) continue;
+        const cfgBar = LW.config.barrel;
+        if (U.hitCircle(b.x, b.y, br, barrel.x, barrel.y, cfgBar.radius)) {
+          barrel.hp -= b.dmg;
+          barrel.flash = 0.08;
+          spawnParticles(run, b.x, b.y, 2, '#ffd08a', 1.6);
+          if (barrel.hp <= 0) breakBarrel(run, barrel);
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        b.active = false;
+        continue;
+      }
       // 보스
       const boss = run.boss;
       if (boss && !boss.dead && U.hitCircle(b.x, b.y, br, boss.x, boss.y, boss.radius)) {
         b.active = false;
         damageBoss(run, b.dmg);
         spawnParticles(run, b.x, b.y, 3, '#ffd9a0', 2.2);
+      }
+    }
+  }
+
+  function breakBarrel(run, barrel) {
+    barrel.broken = true;
+    spawnParticles(run, barrel.x, barrel.y, 16, '#ffb45e', 4);
+    // 위에 얹혀 있던 총이 떨어진다 — 지나가면서 주우면 연사가 빨라진다
+    run.guns.push({ x: barrel.x, y: barrel.y, taken: false, bob: Math.random() * 6, fresh: 0 });
+    emit(run, 'barrel');
+  }
+
+  function updateBarrels(run, prevDist, dt) {
+    const cfgBar = LW.config.barrel;
+    const squad = run.squad;
+    for (const barrel of run.barrels) {
+      barrel.flash = Math.max(0, barrel.flash - dt);
+      barrel.bob += dt * 2.4;
+      if (barrel.broken || barrel.passed) continue;
+      if (prevDist < barrel.y && run.dist >= barrel.y) {
+        barrel.passed = true;
+        // 안 터뜨리고 박으면 병력을 잃는다 (총도 놓친다)
+        if (Math.abs(squad.x - barrel.x) <= cfgBar.radius + squad.halfWidth()) {
+          hurtSquad(run, cfgBar.crushCost, barrel.x, barrel.y);
+          barrel.broken = true;
+          spawnParticles(run, barrel.x, barrel.y, 10, '#c8d4e6', 3);
+        }
+      }
+    }
+  }
+
+  function updateGuns(run, dt) {
+    const squad = run.squad;
+    const hw = squad.halfWidth() + LW.config.weapon.pickupRadius;
+    for (const gun of run.guns) {
+      if (gun.taken) continue;
+      gun.bob += dt * 4.5;
+      gun.fresh += dt;
+      if (gun.y <= run.dist + 0.5 && gun.y > run.dist - 3 && Math.abs(gun.x - squad.x) <= hw) {
+        gun.taken = true;
+        const stacks = squad.pickUpWeapon();
+        spawnParticles(run, gun.x, gun.y, 12, '#ffe27a', 3.4);
+        emit(run, 'weapon', { stacks: stacks });
       }
     }
   }
@@ -399,6 +466,8 @@
     for (let i = run.gates.length - 1; i >= 0; i--) if (run.gates[i].y < behind) run.gates.splice(i, 1);
     for (let i = run.coins.length - 1; i >= 0; i--) if (run.coins[i].y < behind) run.coins.splice(i, 1);
     for (let i = run.barricades.length - 1; i >= 0; i--) if (run.barricades[i].y < behind) run.barricades.splice(i, 1);
+    for (let i = run.barrels.length - 1; i >= 0; i--) if (run.barrels[i].y < behind) run.barrels.splice(i, 1);
+    for (let i = run.guns.length - 1; i >= 0; i--) if (run.guns[i].y < behind) run.guns.splice(i, 1);
   }
 
   function updateParticles(run, dt) {
@@ -469,6 +538,9 @@
     updateGates(run, prevDist);
     updateCoins(run);
     updateBarricades(run, prevDist, dt);
+    updateBarrels(run, prevDist, dt);
+    updateGuns(run, dt);
+    if (squad.tickBuff(dt)) emit(run, 'weaponEnd');
     updateBoss(run, dt);
     updateParticles(run, dt);
     cleanupPassed(run);

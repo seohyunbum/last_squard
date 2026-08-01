@@ -81,6 +81,12 @@
         case 'break':
           blip(90, 0.16, 'square', 0.3);
           break;
+        case 'barrel':
+          blip(140, 0.14, 'sawtooth', 0.32);
+          break;
+        case 'weapon':
+          sweep(700, 1500, 0.22, 'square');
+          break;
         case 'bossStart':
           sweep(120, 320, 0.6, 'sawtooth');
           break;

@@ -46,6 +46,8 @@
         );
       } else if (ev.type === 'hurt' && ev.amount >= 3) {
         push(run.squad.x, run.dist + 0.8, '-' + ev.amount, '', '#ff8b96', 0.95, 0.8);
+      } else if (ev.type === 'weapon') {
+        push(run.squad.x, run.dist + 1.4, '연사 UP!', '×' + ev.stacks, '#ffe27a', 1.2, 1.1);
       } else if (ev.type === 'bossStart') {
         push(0, run.dist + 9, '대장 로봇!', '', '#ffd0d6', 1.5, 1.6);
       } else if (ev.type === 'win') {

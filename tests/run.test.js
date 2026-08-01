@@ -55,17 +55,21 @@ test('사격이 적을 부수고 부품이 쌓인다', () => {
 });
 
 test('적에게 닿으면 병력을 잃는다', () => {
-  const run = newRun(2); // 화력 강화 없이 적 정면으로 달린다
+  const run = newRun(2);
+  // 정면에 안 죽는 적을 세워 접촉 규칙만 검증한다 (운에 맡기지 않는다)
+  const enemy = LW.run.spawnEnemy(run, 'grunt', run.squad.x, run.dist + 3);
+  enemy.hp = enemy.maxHp = 1e9;
+  const before = run.squad.count;
   let hurt = 0;
-  const input = { targetX: 0 };
-  for (let i = 0; i < 60 * 25; i++) {
-    let nearest = null;
-    for (const e of run.enemies) if (e.active && (!nearest || e.y < nearest.y)) nearest = e;
-    input.targetX = nearest ? nearest.x : 0; // 일부러 적 정면으로
+  const input = { targetX: run.squad.x };
+  for (let i = 0; i < 60 * 3; i++) {
+    input.targetX = enemy.active ? enemy.x : run.squad.x;
     for (const ev of LW.run.update(run, 1 / 60, input)) if (ev.type === 'hurt') hurt += ev.amount;
-    if (run.phase === 'lost' || run.phase === 'won') break;
+    if (!enemy.active) break;
   }
   assert.ok(hurt > 0, '적과 부딪혔는데 피해가 없다');
+  assert.ok(run.squad.count < before, '병력이 줄지 않았다');
+  assert.equal(enemy.active, false, '부딪힌 적은 사라져야 한다');
 });
 
 test('병력이 0 이 되면 패배로 끝난다', () => {

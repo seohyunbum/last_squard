@@ -17,6 +17,9 @@
       squadCount: $('hud-squad-count'),
       tip: $('hud-tip'),
       bossBar: $('boss-bar'),
+      buff: $('hud-buff'),
+      buffMult: $('hud-buff-mult'),
+      buffTime: $('hud-buff-time'),
       bossFill: $('boss-fill'),
       home: $('screen-home'),
       homeCoin: $('home-coin'),
@@ -179,6 +182,16 @@
       }
       el.progress.style.width = (LW.run.progress(run) * 100).toFixed(1) + '%';
       el.coin.textContent = run.parts;
+
+      // 총 픽업 버프
+      const squad = run.squad;
+      if (squad.buffTimer > 0) {
+        el.buff.classList.remove('hidden');
+        el.buffMult.textContent = '×' + (squad.mods.fireMult + squad.fireBonus()).toFixed(2);
+        el.buffTime.textContent = squad.buffTimer.toFixed(1);
+      } else {
+        el.buff.classList.add('hidden');
+      }
 
       const boss = run.boss;
       if (boss && !boss.dead) {
