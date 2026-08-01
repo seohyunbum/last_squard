@@ -1,5 +1,9 @@
 # 라스트 스쿼드 (Last Squad)
 
+> **정본 저장소:** [seohyunbum/last_squard](https://github.com/seohyunbum/last_squard)
+>
+> 과거 `YUNU_GAME/claude/last-war-game-copy-7dqved` 브랜치는 이관 원본으로 동결했다. 새 기능과 모바일 Claude 작업은 이 저장소에서만 진행한다.
+
 아이와 함께 만드는 **라스트워 스타일 레인 러너** — 부대 뒤 어깨 시점(광고에서 보던 그 앵글)으로 도로를 달리며
 게이트(`×2`, `+12`, `÷2`, `−6`)를 골라 병력을 불리고, 몰려오는 고철 로봇 군단을 자동 사격으로 막아내
 구역 끝의 대장 로봇을 부순다.

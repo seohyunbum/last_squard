@@ -1,6 +1,16 @@
 # AGENTS.md — 라스트 스쿼드 작업지침
 
 > AI 에이전트(Claude Code·Codex)가 이 저장소에서 작업할 때 매번 읽는 규약.
+
+## 저장소 정본과 작업 시작 가드 (하드 룰)
+
+- **유일한 정본 저장소:** `https://github.com/seohyunbum/last_squard`
+- 모든 작업 시작 시 `git remote get-url origin`을 확인한다. URL이 `seohyunbum/last_squard`를 가리키지 않으면 즉시 중단하고 정본 저장소를 다시 연다(HTTPS·SSH 모두 허용).
+- `seohyunbum/YUNU_GAME`의 `claude/last-war-game-copy-7dqved` 브랜치는 **이관 원본으로 동결**했다. 그 브랜치에서 코드 수정·커밋·push를 하지 않는다.
+- 모바일 Claude에서 새 작업을 만들 때도 저장소 선택은 반드시 **`seohyunbum/last_squard`**로 한다. 예전 YUNU_GAME 작업을 재개했다면 변경하기 전에 중단하고 새 저장소에서 다시 시작한다.
+- 소스 정본은 `main`, 공개 실행본은 `gh-pages`다. `main` push만으로 배포 완료로 보지 않으며, `gh-pages/source-commit.txt`가 `main` HEAD와 같아야 최신 배포다.
+- 홈 PC의 정본 checkout은 `C:\last-squard`다. `C:\last-squad`와 `C:\ai-game-lab`은 이 프로젝트의 작업 위치가 아니다.
+
 > 게임이 무엇인지·어떻게 노는지는 `README.md`.
 
 ## 0. 이 프로젝트는
