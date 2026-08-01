@@ -1,0 +1,3253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>라스트 스쿼드 — 로봇 방어전</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23142033'/%3E%3Ccircle cx='16' cy='11' r='5' fill='%23ffcf4a'/%3E%3Crect x='8' y='17' width='16' height='9' rx='3' fill='%233f7ddc'/%3E%3C/svg%3E" />
+<style>
+:root {
+  --ink: #eaf2ff;
+  --ink-dim: #9fb3cd;
+  --panel: rgba(12, 20, 34, 0.92);
+  --line: rgba(120, 160, 210, 0.28);
+  --good: #45d97a;
+  --bad: #ff5d6c;
+  --accent: #ffcf4a;
+  --accent-2: #47b6ff;
+  font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #060a12;
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+}
+
+.hud-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-stage {
+  font-weight: 800;
+  font-size: 15px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  white-space: nowrap;
+}
+
+.hud-progress {
+  flex: 1;
+  height: 12px;
+  background: rgba(8, 14, 24, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+#hud-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-2), var(--good));
+  transition: width 0.12s linear;
+}
+
+.hud-coin {
+  font-weight: 800;
+  font-size: 15px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+#boss-bar {
+  margin: 10px auto 0;
+  width: min(440px, 92%);
+  text-align: center;
+}
+
+.boss-name {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffb0b8;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+.boss-track {
+  margin-top: 4px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(8, 14, 24, 0.9);
+  border: 1px solid rgba(255, 120, 130, 0.5);
+  overflow: hidden;
+}
+
+#boss-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff8a4a, #ff3d55);
+  transition: width 0.1s linear;
+}
+
+.hud-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.squad-chip {
+  font-size: 26px;
+  font-weight: 900;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 6px 16px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.squad-chip.pump { animation: pump 0.25s ease; }
+.squad-chip.hurt { animation: hurt 0.3s ease; }
+
+@keyframes pump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); color: var(--good); }
+  100% { transform: scale(1); }
+}
+
+@keyframes hurt {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); color: var(--bad); }
+  75% { transform: translateX(6px); color: var(--bad); }
+  100% { transform: translateX(0); }
+}
+
+.hud-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.buff-chip {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffe9a8;
+  background: rgba(120, 60, 10, 0.85);
+  border: 1px solid rgba(255, 190, 90, 0.65);
+  border-radius: 999px;
+  padding: 4px 12px;
+  animation: buffPulse 0.8s ease-in-out infinite;
+}
+
+.buff-chip b { color: #fff; }
+
+@keyframes buffPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 180, 60, 0); }
+  50% { box-shadow: 0 0 14px rgba(255, 180, 60, 0.55); }
+}
+
+.hud-tip {
+  font-size: 12px;
+  color: var(--ink-dim);
+  background: rgba(8, 14, 24, 0.6);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+/* ---------- 화면 ---------- */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 30%, rgba(30, 52, 88, 0.95), rgba(4, 8, 14, 0.97));
+  overflow-y: auto;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(30px, 8vw, 54px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg, #fff, var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-align: center;
+}
+
+.title.small { font-size: clamp(22px, 5vw, 32px); }
+
+.subtitle {
+  margin: 0 0 6px;
+  color: var(--ink-dim);
+  font-size: 14px;
+  text-align: center;
+  max-width: 420px;
+}
+
+.home-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 96px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.stat-label { font-size: 11px; color: var(--ink-dim); }
+.stat-value { font-size: 17px; font-weight: 800; }
+
+.btn {
+  font: inherit;
+  font-weight: 800;
+  color: var(--ink);
+  background: rgba(28, 44, 72, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 22px;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+
+.btn:hover { filter: brightness(1.15); }
+.btn:active { transform: scale(0.96); }
+
+.btn-primary {
+  background: linear-gradient(180deg, #ffd85e, #f5a623);
+  color: #24170a;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 22px rgba(245, 166, 35, 0.32);
+}
+
+.btn-big {
+  font-size: 20px;
+  padding: 16px 40px;
+  border-radius: 18px;
+}
+
+.btn-back { background: rgba(20, 30, 48, 0.9); font-weight: 600; }
+
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+.home-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.hint { color: var(--ink-dim); font-size: 12px; margin: 4px 0 0; text-align: center; }
+
+.coin-line { font-size: 15px; color: var(--ink-dim); }
+.coin-line b { color: var(--accent); font-size: 18px; }
+
+/* ---------- 업그레이드 목록 ---------- */
+
+.upgrade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+}
+
+.upgrade-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.upgrade-icon { font-size: 24px; }
+.upgrade-body { flex: 1; min-width: 0; }
+.upgrade-name { font-weight: 800; font-size: 15px; }
+.upgrade-desc { font-size: 12px; color: var(--ink-dim); }
+.upgrade-level { font-size: 12px; color: var(--accent-2); font-weight: 700; }
+
+.upgrade-buy {
+  font: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #56e08a, #24a45c);
+  color: #06210f;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.upgrade-buy:disabled { background: rgba(60, 76, 100, 0.9); color: var(--ink-dim); cursor: default; }
+
+/* ---------- 구역 목록 ---------- */
+
+.stage-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  width: min(460px, 100%);
+}
+
+.stage-card {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.stage-card.locked { opacity: 0.4; cursor: default; }
+.stage-card.cleared { border-color: rgba(69, 217, 122, 0.6); }
+.stage-card .sc-no { font-size: 18px; font-weight: 900; }
+.stage-card .sc-name { font-size: 11px; color: var(--ink-dim); }
+.stage-card .sc-stars { font-size: 11px; margin-top: 3px; letter-spacing: 1px; }
+
+/* ---------- 결과 ---------- */
+
+.stars { font-size: 34px; letter-spacing: 6px; }
+
+.result-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 15px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 22px;
+  min-width: 220px;
+}
+
+.result-lines .rl { display: flex; justify-content: space-between; gap: 20px; }
+.result-lines .rl b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="stage"></canvas>
+
+  <!-- 전투 HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-stage"><span id="hud-stage-name">1구역</span></div>
+      <div class="hud-progress"><div id="hud-progress-fill"></div></div>
+      <div class="hud-coin">🔩 <span id="hud-coin">0</span></div>
+    </div>
+    <div id="boss-bar" class="hidden">
+      <div class="boss-name">고철 대장 로봇</div>
+      <div class="boss-track"><div id="boss-fill"></div></div>
+    </div>
+    <div class="hud-bottom">
+      <div class="hud-left">
+        <div id="hud-squad" class="squad-chip">👥 <span id="hud-squad-count">10</span></div>
+        <div id="hud-buff" class="buff-chip hidden">🔥 연사 <b id="hud-buff-mult">×1.4</b> <span id="hud-buff-time">7.0</span>s</div>
+      </div>
+      <div id="hud-tip" class="hud-tip">드래그 · ← → 로 이동</div>
+    </div>
+  </div>
+
+  <!-- 기지 화면 -->
+  <section id="screen-home" class="screen">
+    <h1 class="title">라스트 스쿼드</h1>
+    <p class="subtitle">게이트를 골라 병력을 불리고, 고철 로봇 군단을 막아내자</p>
+    <div class="home-stats">
+      <div class="stat"><span class="stat-label">보유 부품</span><span class="stat-value">🔩 <b id="home-coin">0</b></span></div>
+      <div class="stat"><span class="stat-label">최고 구역</span><span class="stat-value">🏁 <b id="home-best">1</b></span></div>
+      <div class="stat"><span class="stat-label">시작 병력</span><span class="stat-value">👥 <b id="home-start">10</b></span></div>
+    </div>
+    <button id="btn-play" class="btn btn-primary btn-big">출동! <span id="btn-play-stage">1구역</span></button>
+    <div class="home-row">
+      <button id="btn-upgrade" class="btn">🔧 병력 강화</button>
+      <button id="btn-stages" class="btn">🗺️ 구역 선택</button>
+    </div>
+    <p class="hint">조작: 마우스 드래그 / 손가락 / ← → 키 · 사격은 자동</p>
+  </section>
+
+  <!-- 업그레이드 -->
+  <section id="screen-upgrade" class="screen hidden">
+    <h2 class="title small">병력 강화</h2>
+    <div class="coin-line">보유 부품 🔩 <b id="upgrade-coin">0</b></div>
+    <div id="upgrade-list" class="upgrade-list"></div>
+    <button class="btn btn-back" data-back>← 기지로</button>
+  </section>
+
+  <!-- 구역 선택 -->
+  <section id="screen-stages" class="screen hidden">
+    <h2 class="title small">구역 선택</h2>
+    <div id="stage-list" class="stage-list"></div>
+    <button class="btn btn-back" data-back>← 기지로</button>
+  </section>
+
+  <!-- 결과 -->
+  <section id="screen-result" class="screen hidden">
+    <h2 id="result-title" class="title small">구역 돌파!</h2>
+    <div id="result-stars" class="stars"></div>
+    <div id="result-lines" class="result-lines"></div>
+    <button id="btn-result-main" class="btn btn-primary btn-big">다음 구역</button>
+    <button id="btn-result-retry" class="btn">🔄 다시 도전</button>
+    <button id="btn-result-home" class="btn btn-back">🏠 기지로</button>
+  </section>
+</div>
+
+<script>
+/* 공용 수학·난수 유틸. 어떤 모듈보다 먼저 로드된다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  /** cur 을 target 으로 초당 speed 비율만큼 부드럽게 당긴다 (프레임 독립). */
+  function damp(cur, target, speed, dt) {
+    return lerp(cur, target, 1 - Math.exp(-speed * dt));
+  }
+
+  /** 결정론적 난수 — 스테이지 생성은 같은 시드면 항상 같은 구성이 나와야 한다. */
+  function makeRng(seed) {
+    let s = (seed >>> 0) || 1;
+    const rng = function () {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    rng.range = (lo, hi) => lo + rng() * (hi - lo);
+    rng.int = (lo, hi) => Math.floor(lo + rng() * (hi - lo + 1));
+    rng.pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    rng.chance = (p) => rng() < p;
+    return rng;
+  }
+
+  /** 1200 -> "1.2천" (병력 수가 커져도 HUD 가 안 깨지게) */
+  function formatCount(n) {
+    if (n < 1000) return String(n);
+    if (n < 10000) return (Math.floor(n / 100) / 10).toFixed(1) + '천';
+    return Math.floor(n / 1000) + '천';
+  }
+
+  /** 원-원 충돌 (제곱 비교로 sqrt 회피 — 핫패스에서 호출된다) */
+  function hitCircle(ax, ay, ar, bx, by, br) {
+    const dx = ax - bx;
+    const dy = ay - by;
+    const r = ar + br;
+    return dx * dx + dy * dy <= r * r;
+  }
+
+  LW.util = { clamp, lerp, damp, makeRng, formatCount, hitCircle };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 밸런스 정본 — 숫자를 만지려면 이 파일만 고친다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  /** 도로 좌표계: x 는 -halfWidth..halfWidth, y 는 전진 거리(월드 단위). */
+  const world = {
+    roadHalfWidth: 4.4,
+    playerLine: 0, // 스쿼드 선두는 항상 카메라 기준 고정 라인
+    cameraBack: 3.2, // 플레이어 뒤로 보이는 거리
+    cameraFront: 19, // 플레이어 앞으로 보이는 거리
+  };
+
+  /** 부대 뒤 어깨 시점(광고에서 보던 그 앵글) — 원근 투영 파라미터. */
+  const camera = {
+    back: 4.2, // 부대 선두에서 카메라까지 (월드 단위)
+    height: 7.6, // 카메라 높이 — 크면 위에서 내려다보는 각이 된다
+    focalRatio: 0.4, // 초점 거리 = focalRatio * min(화면폭, 화면높이*0.62)
+    horizonRatio: 0.3, // 지평선이 화면 위에서 몇 %인가
+    near: 1.0, // 이보다 가까운 건 그리지 않는다
+    far: 260, // 도로가 여기까지 뻗어 보인다
+    drawDistance: 150, // 노면 무늬를 그리는 거리
+  };
+
+  /** 오브젝트 세로 높이(월드 단위) — 원근에서 "서 있는" 느낌을 만든다. */
+  const heights = {
+    unit: 0.82,
+    enemy: 0.95,
+    brute: 1.45,
+    boss: 3.5,
+    gate: 2.7,
+    barricade: 1.05,
+    gun: 0.5,
+    coin: 0.45,
+  };
+
+  const squad = {
+    baseCount: 10,
+    maxCount: 999,
+    basePerRow: 3,
+    maxPerRow: 16, // 병력이 늘면 진형이 도로를 채운다 -> 회피가 어려워진다
+    spacingX: 0.42,
+    spacingY: 0.4,
+    maxDrawn: 54, // 이 이상은 그리지 않고 숫자 배지로 표시
+    unitRadius: 0.2,
+    moveSpeed: 7.6, // 좌우 이동 (월드 단위/초)
+    advanceSpeed: 6.4, // 전진 속도
+    fireInterval: 0.26,
+    damagePerUnit: 1.5,
+    maxBulletsPerVolley: 11,
+    bulletSpeed: 22,
+    bulletRadius: 0.16,
+  };
+
+  const enemyKinds = {
+    grunt: { hp: 9, speed: 1.7, radius: 0.3, cost: 1, color: '#8d97a8', bounty: 1 },
+    runner: { hp: 6, speed: 3.6, radius: 0.26, cost: 1, color: '#c98a4b', bounty: 1 },
+    brute: { hp: 36, speed: 1.05, radius: 0.52, cost: 3, color: '#6f7d95', bounty: 4 },
+    shooter: { hp: 14, speed: 1.15, radius: 0.32, cost: 2, color: '#a26bb5', bounty: 3, fireInterval: 2.1 },
+  };
+
+  const boss = {
+    hp: 570,
+    radius: 1.6,
+    speed: 0.5,
+    standoff: 8, // 부대가 보스 앞 이 거리에서 멈춰 정면 승부를 벌인다
+    contactCost: 8, // 보스가 스쿼드에 닿으면 잃는 병력
+    spawnInterval: 3.4,
+    fireInterval: 1.55,
+    boltSpeed: 7.5,
+  };
+
+  const enemyBolt = { radius: 0.2, cost: 1, speed: 7.5 };
+
+  const barricade = { hp: 60, halfWidth: 1.15, thickness: 0.5, crushCost: 6 };
+
+  /** 드럼통: 쏘면 터지고 위에 얹힌 총이 노면에 떨어진다. 그냥 박으면 병력을 잃는다. */
+  const barrel = { hp: 22, radius: 0.62, height: 1.4, crushCost: 4, gunZ: 1.95 };
+
+  /** 총 픽업 — 먹으면 일정 시간 연사가 빨라진다 (겹쳐 먹으면 더 빨라짐). */
+  const weapon = {
+    pickupRadius: 0.55,
+    fireBonusPerStack: 0.35, // 연사 배율에 더해지는 값
+    maxStacks: 3,
+    duration: 7, // 초
+  };
+
+  const scaling = {
+    /** 구역이 오를수록 적 체력·수량이 는다. */
+    enemyHp: (stage) => 1 + 0.29 * (stage - 1),
+    enemyCount: (stage) => 1 + 0.14 * (stage - 1),
+    bossHp: (stage) => 1 + 0.72 * (stage - 1),
+    length: (stage) => 250 + 26 * (stage - 1),
+    reward: (stage) => 26 + 12 * (stage - 1),
+  };
+
+  /** 구역 테마 — 배경색과 등장 적 구성. 넘어가면 마지막 테마를 반복(엔드리스). */
+  const stages = [
+    { name: '1구역 · 폐차장', road: '#3a4050', side: '#4d4130', sky: ['#1b2740', '#4a5b7d'], far: '#2a3450', kinds: ['grunt'] },
+    { name: '2구역 · 고물 야드', road: '#374051', side: '#42522f', sky: ['#1a2c3c', '#5a7a6a'], far: '#27423a', kinds: ['grunt', 'runner'] },
+    { name: '3구역 · 컨테이너 항', road: '#324256', side: '#2c505c', sky: ['#12283c', '#3f7d92'], far: '#1e4453', kinds: ['grunt', 'runner', 'brute'] },
+    { name: '4구역 · 발전소 터', road: '#3a3648', side: '#553748', sky: ['#241a34', '#6e4666'], far: '#3b2540', kinds: ['grunt', 'runner', 'shooter'] },
+    { name: '5구역 · 지하 통로', road: '#2b303c', side: '#383b4c', sky: ['#0d1018', '#2a3040'], far: '#1a1e28', kinds: ['grunt', 'brute', 'shooter'] },
+    { name: '6구역 · 사막 국도', road: '#443b31', side: '#7a663f', sky: ['#3d2a18', '#c08a4a'], far: '#6b5230', kinds: ['runner', 'brute', 'shooter'] },
+    { name: '7구역 · 눈 덮인 다리', road: '#3a424e', side: '#7d8b99', sky: ['#20303f', '#8fa8ba'], far: '#5b6c7c', kinds: ['grunt', 'runner', 'brute', 'shooter'] },
+    { name: '8구역 · 용광로', road: '#453036', side: '#75382a', sky: ['#3a1410', '#b8482a'], far: '#63241c', kinds: ['runner', 'brute', 'shooter'] },
+    { name: '9구역 · 폐허 도심', road: '#333844', side: '#4c4c58', sky: ['#181c26', '#4a4f5e'], far: '#2c3040', kinds: ['grunt', 'runner', 'brute', 'shooter'] },
+    { name: '10구역 · 사령부', road: '#2c3446', side: '#3c4c68', sky: ['#101a2c', '#3e5a86'], far: '#22304a', kinds: ['grunt', 'runner', 'brute', 'shooter'] },
+  ];
+
+  const pools = { bullets: 220, bolts: 80, enemies: 90, particles: 220 };
+
+  /** 최대로 불린 병력 대비 생존 비율로 별 2~3개 (승리 자체가 별 1개). */
+  const starThresholds = { two: 0.3, three: 0.6 };
+
+  /** 병력이 커지면 적도 함께 몰려온다 — 안 그러면 후반이 그냥 산책이 된다. */
+  const pressure = {
+    extraWavePer: 20, // 병력 20명마다 웨이브 적이 한 겹 더
+    maxExtraWaves: 6,
+    enemyHpPerUnit: 1 / 150, // 병력 150명이면 적 체력 +100%
+    maxEnemyHpBonus: 4,
+    bossHpPerUnit: 1 / 45, // 큰 부대로 가면 보스도 그만큼 단단해진다
+    maxBossHpBonus: 20,
+    contactPerUnit: 1 / 200, // 큰 부대는 한 번 부딪힐 때 더 많이 잃는다
+    maxContactBonus: 5,
+  };
+
+  LW.config = {
+    world,
+    camera,
+    heights,
+    squad,
+    enemyKinds,
+    boss,
+    enemyBolt,
+    barricade,
+    barrel,
+    weapon,
+    scaling,
+    stages,
+    pools,
+    starThresholds,
+    pressure,
+    stageCount: stages.length,
+    stageTheme(stage) {
+      return stages[Math.min(stage, stages.length) - 1];
+    },
+    stageName(stage) {
+      if (stage <= stages.length) return stages[stage - 1].name;
+      return stage + '구역 · 무한 전선';
+    },
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 부품(코인)으로 사는 영구 강화. 레벨 -> 배율은 순수 함수로 둬서 테스트한다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  const defs = [
+    {
+      id: 'start',
+      icon: '👥',
+      name: '시작 병력',
+      desc: '출동할 때 데려가는 병력 수',
+      maxLevel: 20,
+      cost: (lv) => 40 + lv * 34,
+      value: (lv) => LW.config.squad.baseCount + lv * 2,
+      display: (lv) => `${LW.config.squad.baseCount + lv * 2}명`,
+    },
+    {
+      id: 'damage',
+      icon: '💥',
+      name: '화력',
+      desc: '병력 1명당 공격력',
+      maxLevel: 25,
+      cost: (lv) => 35 + lv * 30,
+      value: (lv) => 1 + lv * 0.16,
+      display: (lv) => `×${(1 + lv * 0.16).toFixed(2)}`,
+    },
+    {
+      id: 'fire',
+      icon: '🔥',
+      name: '연사 속도',
+      desc: '사격 간격이 짧아진다',
+      maxLevel: 15,
+      cost: (lv) => 50 + lv * 42,
+      value: (lv) => 1 + lv * 0.09,
+      display: (lv) => `×${(1 + lv * 0.09).toFixed(2)}`,
+    },
+    {
+      id: 'speed',
+      icon: '🏃',
+      name: '기동력',
+      desc: '좌우 이동이 빨라진다',
+      maxLevel: 10,
+      cost: (lv) => 45 + lv * 30,
+      value: (lv) => 1 + lv * 0.07,
+      display: (lv) => `×${(1 + lv * 0.07).toFixed(2)}`,
+    },
+    {
+      id: 'loot',
+      icon: '🔩',
+      name: '부품 회수',
+      desc: '전투에서 얻는 부품이 늘어난다',
+      maxLevel: 12,
+      cost: (lv) => 55 + lv * 38,
+      value: (lv) => 1 + lv * 0.12,
+      display: (lv) => `×${(1 + lv * 0.12).toFixed(2)}`,
+    },
+  ];
+
+  const byId = {};
+  for (const d of defs) byId[d.id] = d;
+
+  /** 세이브의 levels 맵 -> 실제 전투에 쓰는 수치 묶음. */
+  function resolve(levels) {
+    const lv = levels || {};
+    return {
+      startCount: byId.start.value(lv.start | 0),
+      damageMult: byId.damage.value(lv.damage | 0),
+      fireMult: byId.fire.value(lv.fire | 0),
+      speedMult: byId.speed.value(lv.speed | 0),
+      lootMult: byId.loot.value(lv.loot | 0),
+    };
+  }
+
+  function costOf(id, level) {
+    const def = byId[id];
+    if (!def) return Infinity;
+    if (level >= def.maxLevel) return Infinity;
+    return Math.round(def.cost(level));
+  }
+
+  LW.upgrades = { defs, byId, resolve, costOf };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* localStorage 세이브. storage 를 주입받아 테스트 가능하게 둔다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  const KEY = 'last-squad.save';
+  const SAVE_VERSION = 1;
+
+  function fresh() {
+    return {
+      version: SAVE_VERSION,
+      coins: 0,
+      bestStage: 1, // 해금된 최고 구역
+      levels: { start: 0, damage: 0, fire: 0, speed: 0, loot: 0 },
+      stars: {}, // stage -> 0..3
+    };
+  }
+
+  /** 어떤 잡값이 와도 항상 정상 세이브를 돌려준다. */
+  function normalize(raw) {
+    const base = fresh();
+    if (!raw || typeof raw !== 'object') return base;
+    const out = base;
+    if (Number.isFinite(raw.coins)) out.coins = Math.max(0, Math.floor(raw.coins));
+    if (Number.isFinite(raw.bestStage)) out.bestStage = Math.max(1, Math.floor(raw.bestStage));
+    if (raw.levels && typeof raw.levels === 'object') {
+      for (const def of LW.upgrades.defs) {
+        const v = raw.levels[def.id];
+        if (Number.isFinite(v)) out.levels[def.id] = LW.util.clamp(Math.floor(v), 0, def.maxLevel);
+      }
+    }
+    if (raw.stars && typeof raw.stars === 'object') {
+      for (const k of Object.keys(raw.stars)) {
+        const stage = Math.floor(Number(k));
+        const stars = Math.floor(Number(raw.stars[k]));
+        if (stage >= 1 && stars >= 1) out.stars[stage] = LW.util.clamp(stars, 1, 3);
+      }
+    }
+    return out;
+  }
+
+  function makeRepository(storage) {
+    return {
+      load() {
+        try {
+          const text = storage.getItem(KEY);
+          return normalize(text ? JSON.parse(text) : null);
+        } catch (err) {
+          return fresh();
+        }
+      },
+      save(data) {
+        try {
+          storage.setItem(KEY, JSON.stringify(normalize(data)));
+          return true;
+        } catch (err) {
+          return false;
+        }
+      },
+      clear() {
+        try {
+          storage.removeItem(KEY);
+        } catch (err) {
+          /* 저장 불가 환경(시크릿 모드 등)은 조용히 무시 */
+        }
+      },
+    };
+  }
+
+  /** 결과를 세이브에 반영 — 얻은 부품·별·해금 구역. */
+  function applyResult(data, result) {
+    data.coins += result.coins;
+    if (result.win) {
+      const prev = data.stars[result.stage] || 0;
+      if (result.stars > prev) data.stars[result.stage] = result.stars;
+      if (result.stage + 1 > data.bestStage) data.bestStage = result.stage + 1;
+    }
+    return data;
+  }
+
+  LW.save = { KEY, SAVE_VERSION, fresh, normalize, makeRepository, applyResult };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 스쿼드: 병력 수 -> 진형 좌표 · 사격 · 손실. 렌더와 무관한 순수 로직. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  /**
+   * 한 줄에 몇 명이 서는가 — 병력이 늘수록 진형이 넓어진다.
+   * 넓은 부대는 화력이 세지만 그만큼 피하기 어려워진다 (밸런스의 핵심).
+   */
+  function perRowFor(count) {
+    const cfg = LW.config.squad;
+    const wide = cfg.basePerRow + Math.floor(Math.sqrt(Math.max(0, count)));
+    return LW.util.clamp(wide, cfg.basePerRow, cfg.maxPerRow);
+  }
+
+  /**
+   * 병력 수에 맞는 진형 오프셋(플레이어 중심 기준)을 채운다.
+   * 핫패스에서 매 프레임 호출되므로 배열을 새로 만들지 않고 재사용한다.
+   */
+  function fillFormation(out, count) {
+    const cfg = LW.config.squad;
+    const drawn = Math.min(count, cfg.maxDrawn);
+    const perRow = perRowFor(count);
+    let i = 0;
+    let row = 0;
+    while (i < drawn) {
+      const remain = drawn - i;
+      const inRow = Math.min(perRow, remain);
+      const rowWidth = (inRow - 1) * cfg.spacingX;
+      for (let c = 0; c < inRow; c++) {
+        let slot = out[i];
+        if (!slot) slot = out[i] = { x: 0, y: 0, i: 0 };
+        slot.x = -rowWidth / 2 + c * cfg.spacingX;
+        slot.y = -row * cfg.spacingY;
+        slot.i = i; // 달리기 애니메이션 위상용
+        i++;
+      }
+      row++;
+    }
+    out.length = drawn;
+    return out;
+  }
+
+  function makeSquad(count, mods) {
+    const cfg = LW.config.squad;
+    return {
+      count: Math.max(1, Math.floor(count)),
+      x: 0,
+      targetX: 0,
+      fireTimer: 0,
+      formation: [],
+      mods: mods,
+      buffTimer: 0, // 총 픽업 남은 시간
+      buffStacks: 0,
+      /** 이번 볼리의 총 피해량 (병력 수 x 1명당 화력) */
+      volleyDamage() {
+        return this.count * cfg.damagePerUnit * this.mods.damageMult;
+      },
+      /** 총알 개수는 상한이 있고, 피해량은 총알에 균등 분배된다. */
+      volleyBullets() {
+        return LW.util.clamp(Math.ceil(this.count / 4), 1, cfg.maxBulletsPerVolley);
+      },
+      /** 총 픽업으로 더해지는 연사 배율 */
+      fireBonus() {
+        if (this.buffTimer <= 0) return 0;
+        return this.buffStacks * LW.config.weapon.fireBonusPerStack;
+      },
+      interval() {
+        return cfg.fireInterval / (this.mods.fireMult + this.fireBonus());
+      },
+      /** 총을 먹었다 — 시간 갱신 + 중첩 (상한까지) */
+      pickUpWeapon() {
+        const w = LW.config.weapon;
+        this.buffStacks = Math.min(w.maxStacks, this.buffStacks + 1);
+        this.buffTimer = w.duration;
+        return this.buffStacks;
+      },
+      tickBuff(dt) {
+        if (this.buffTimer <= 0) return false;
+        this.buffTimer -= dt;
+        if (this.buffTimer <= 0) {
+          this.buffTimer = 0;
+          this.buffStacks = 0;
+          return true; // 이번 프레임에 끝났다
+        }
+        return false;
+      },
+      add(n) {
+        this.count = LW.util.clamp(this.count + n, 0, cfg.maxCount);
+      },
+      lose(n) {
+        this.count = Math.max(0, this.count - Math.max(1, Math.floor(n)));
+      },
+      alive() {
+        return this.count > 0;
+      },
+      /** 진형 가로 반폭 — 충돌 판정에 쓴다. */
+      halfWidth() {
+        const inRow = Math.min(perRowFor(this.count), Math.max(1, this.count));
+        return ((inRow - 1) * LW.config.squad.spacingX) / 2 + LW.config.squad.unitRadius;
+      },
+      /** 진형 세로 깊이 */
+      depth() {
+        const drawn = Math.min(this.count, LW.config.squad.maxDrawn);
+        const rows = Math.max(1, Math.ceil(drawn / perRowFor(this.count)));
+        return (rows - 1) * LW.config.squad.spacingY + LW.config.squad.unitRadius * 2;
+      },
+    };
+  }
+
+  LW.squad = { makeSquad, fillFormation, perRowFor };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 게이트: 라스트워식 병력 연산 문(+, ×, -, ÷). 문 하나만 통과한다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  const OPS = ['add', 'mul', 'sub', 'div'];
+
+  function apply(count, gate) {
+    const max = LW.config.squad.maxCount;
+    let next = count;
+    switch (gate.op) {
+      case 'add':
+        next = count + gate.value;
+        break;
+      case 'mul':
+        next = Math.floor(count * gate.value);
+        break;
+      case 'sub':
+        next = count - gate.value;
+        break;
+      case 'div':
+        next = Math.floor(count / gate.value);
+        break;
+      default:
+        next = count;
+    }
+    return LW.util.clamp(next, 0, max);
+  }
+
+  function label(gate) {
+    switch (gate.op) {
+      case 'add':
+        return '+' + gate.value;
+      case 'mul':
+        return '×' + gate.value;
+      case 'sub':
+        return '−' + gate.value;
+      case 'div':
+        return '÷' + gate.value;
+      default:
+        return '?';
+    }
+  }
+
+  /** 실제로 이득인가 — 겉모습(fake)과 무관하게 숫자로만 판단한다. */
+  function isBuff(gate) {
+    if (gate.op === 'add') return gate.value > 0;
+    if (gate.op === 'mul') return gate.value > 1;
+    return false;
+  }
+
+  /** 겉모습만 이득처럼 보이는 문(페이크)인가 — 색은 초록인데 결과는 손해다. */
+  function looksBuff(gate) {
+    return gate.fake === true || isBuff(gate);
+  }
+
+  /**
+   * 둘 다 초록(진짜 이득)인 한 쌍. 아무 쪽이나 이득이지만 한쪽이 더 크게 이득이라
+   * 색이 아니라 숫자를 비교해야 한다 — ×2 와 +N 은 병력 수에 따라 유불리가 뒤집힌다.
+   */
+  function makeBothGood(rng, expected, stage) {
+    const mul = { op: 'mul', value: rng.chance(0.15 + stage * 0.02) ? 3 : 2 };
+    const grow = apply(expected, mul) - expected; // 곱하기로 늘어나는 양
+    const gap = Math.max(3, Math.round(expected * 0.3)); // 결과가 확실히 벌어지게
+    // 절반은 더하기가 유리하고 절반은 곱하기가 유리하다 — 매번 새로 읽어야 한다.
+    const value = rng.chance(0.5)
+      ? grow + gap
+      : Math.max(3, Math.min(grow - gap, Math.round(grow * 0.7)));
+    const pair = [mul, { op: 'add', value: value }];
+    return rng.chance(0.5) ? pair : [pair[1], pair[0]];
+  }
+
+  /**
+   * 현재 예상 병력에 맞춰 문 두 개를 만든다.
+   * 기본은 이득 하나 + 손해 하나, 때때로 둘 다 초록(더 큰 쪽 고르기)이다.
+   * expected 가 커지면 더하기 값도 같이 커져서 후반에도 의미가 있다.
+   */
+  function makePair(rng, expected, stage, opts) {
+    if (opts && opts.allowBothGood) {
+      const pair = makeBothGood(rng, expected, stage);
+      // 두 문의 결과가 같으면 선택이 무의미하다 — 그럴 때만 보통 쌍으로 되돌린다.
+      if (apply(expected, pair[0]) !== apply(expected, pair[1])) return pair;
+    }
+    const scale = Math.max(4, Math.round(expected * 0.45));
+    const buffs = [
+      { op: 'add', value: rng.int(Math.max(3, Math.round(scale * 0.5)), Math.max(6, scale)) },
+      { op: 'add', value: rng.int(Math.max(5, scale), Math.max(9, Math.round(scale * 1.6))) },
+      { op: 'mul', value: 2 },
+      { op: 'mul', value: rng.chance(0.25 + stage * 0.02) ? 3 : 2 },
+    ];
+    const nerfs = [
+      { op: 'sub', value: rng.int(Math.max(3, Math.round(scale * 0.4)), Math.max(7, scale)) },
+      { op: 'div', value: 2 },
+      { op: 'div', value: rng.chance(0.3) ? 3 : 2 },
+    ];
+    const buff = rng.pick(buffs);
+    let nerf = rng.pick(nerfs);
+
+    // 페이크 문: 초록으로 보이지만 실제로는 손해다. 색만 거짓이고 문에 적힌
+    // 연산(×0, −7, ÷2)은 정직하다 — "색이 아니라 숫자를 읽어라" 를 가르치는 장치.
+    if (opts && opts.allowFake && stage >= 3 && rng.chance(0.6)) {
+      nerf = rng.chance(0.5)
+        ? { op: 'mul', value: 0, fake: true } // ×0 — 통과하면 전멸
+        : { op: nerf.op, value: nerf.value, fake: true };
+    }
+    // 좌우 배치는 무작위 — 아이가 매번 읽고 판단해야 한다.
+    return rng.chance(0.5) ? [buff, nerf] : [nerf, buff];
+  }
+
+  LW.gates = { OPS, apply, label, isBuff, looksBuff, makePair, makeBothGood };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 구역 구성 생성 — 시드 고정이라 같은 구역은 항상 같은 코스가 나온다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  const GATE_GAP = 44; // 게이트 간 거리
+  const FIRST_GATE = 26;
+
+  /**
+   * @returns {{stage:number, name:string, theme:object, length:number, bossY:number,
+   *            events:Array, enemyHpMult:number}}
+   */
+  function build(stage, startCount) {
+    const cfg = LW.config;
+    const rng = LW.util.makeRng(stage * 9176 + 31);
+    const theme = cfg.stageTheme(stage);
+    const length = Math.round(cfg.scaling.length(stage));
+    const hpMult = cfg.scaling.enemyHp(stage);
+    const countMult = cfg.scaling.enemyCount(stage);
+    const bossY = length;
+    const events = [];
+
+    // 게이트 값 스케일을 잡기 위한 "예상 병력" 추적치. 실제 플레이와 정확히 같을 필요는 없다.
+    let expected = Math.max(4, startCount);
+
+    let fakeLeft = stage >= 3 ? 1 : 0; // 페이크 문은 구역당 최대 1개
+    let bothGoodLeft = stage >= 2 ? 2 : 1; // 둘 다 초록인 문은 구역당 최대 2개
+
+    for (let y = FIRST_GATE; y < bossY - 30; y += GATE_GAP) {
+      const allowFake = fakeLeft > 0 && y > FIRST_GATE;
+      const pair = LW.gates.makePair(rng, expected, stage, {
+        allowFake: allowFake,
+        // 페이크와 겹치지 않게 — 한 게이트는 하나의 교훈만 준다.
+        allowBothGood: !allowFake && bothGoodLeft > 0 && rng.chance(0.35),
+      });
+      if (pair.some((door) => door.fake)) fakeLeft--;
+      if (pair.every((door) => LW.gates.isBuff(door))) bothGoodLeft--;
+      events.push({ type: 'gate', y: y, doors: pair });
+      // 아이가 좋은 문을 고른다고 가정하고 예상치를 갱신
+      const best = Math.max(LW.gates.apply(expected, pair[0]), LW.gates.apply(expected, pair[1]));
+      expected = Math.max(3, best);
+
+      // 첫 블록은 몸풀기 — 게이트를 두 번 지나 병력을 불린 뒤부터 적이 나온다.
+      const waves = y === FIRST_GATE ? 0 : rng.int(2, 3);
+      for (let w = 0; w < waves; w++) {
+        const wy = y + 12 + w * 11 + rng.range(-1.5, 1.5);
+        if (wy > bossY - 8) break;
+        events.push(makeWave(rng, wy, theme.kinds, expected, countMult, stage));
+        expected = Math.max(3, expected - 1);
+      }
+
+      // 드럼통 — 쏴서 터뜨리면 위의 총을 얻는다. 게이트 구간마다 반드시 나온다.
+      const barrelCount = rng.int(2, 3);
+      const bx = rng.range(-2.8, 2.8);
+      for (let i = 0; i < barrelCount; i++) {
+        const by = y + 10 + i * rng.range(5, 9) + rng.range(-1.5, 1.5);
+        if (by > bossY - 6) break;
+        events.push({
+          type: 'barrel',
+          y: by,
+          x: LW.util.clamp(bx + i * rng.range(-2.2, 2.2), -3.4, 3.4),
+          hp: Math.round(cfg.barrel.hp * (1 + 0.12 * (stage - 1))),
+        });
+      }
+
+      // 가끔 바리케이드(부수거나 피해야 함)와 부품 뭉치
+      if (rng.chance(0.45) && stage >= 2) {
+        events.push({
+          type: 'barricade',
+          y: y + 30 + rng.range(-2, 2),
+          x: rng.range(-2.4, 2.4),
+          hp: Math.round(cfg.barricade.hp * hpMult),
+        });
+      }
+      if (rng.chance(0.7)) {
+        const cx = rng.range(-3.2, 3.2);
+        const cy = y + 6 + rng.range(0, 6);
+        for (let i = 0; i < 4; i++) events.push({ type: 'coin', y: cy + i * 1.5, x: cx });
+      }
+    }
+
+    // 보스 직전 마지막 선택 — 여기서 문 하나가 승패를 가른다.
+    events.push({
+      type: 'gate',
+      y: bossY - 22,
+      doors: LW.gates.makePair(rng, expected, stage, { allowFake: fakeLeft > 0 }),
+    });
+
+    events.sort((a, b) => a.y - b.y);
+
+    return {
+      stage: stage,
+      name: cfg.stageName(stage),
+      theme: theme,
+      length: length,
+      bossY: bossY,
+      events: events,
+      enemyHpMult: hpMult,
+      bossHp: Math.round(cfg.boss.hp * cfg.scaling.bossHp(stage)),
+      rewardBase: Math.round(cfg.scaling.reward(stage)),
+    };
+  }
+
+  function makeWave(rng, y, kinds, expected, countMult, stage) {
+    const n = LW.util.clamp(Math.round(rng.int(2, 4) * countMult), 2, 9);
+    const entries = [];
+    for (let i = 0; i < n; i++) {
+      const kind = rng.pick(kinds);
+      entries.push({
+        kind: kind,
+        x: rng.range(-LW.config.world.roadHalfWidth + 0.6, LW.config.world.roadHalfWidth - 0.6),
+        y: y + rng.range(-2.5, 2.5),
+      });
+    }
+    return { type: 'wave', y: y, entries: entries };
+  }
+
+  LW.stage = { build, GATE_GAP, FIRST_GATE };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 전투 시뮬레이션 — 캔버스·DOM 을 모르는 순수 상태 기계. 렌더러가 이 상태를 읽어 그린다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+  const U = LW.util;
+
+  function pool(size, make) {
+    const arr = new Array(size);
+    for (let i = 0; i < size; i++) arr[i] = make();
+    return arr;
+  }
+
+  function takeFrom(arr) {
+    for (let i = 0; i < arr.length; i++) if (!arr[i].active) return arr[i];
+    return null; // 풀 소진 — 상한이 곧 성능 예산이다
+  }
+
+  function create(stageIndex, mods) {
+    const cfg = LW.config;
+    const plan = LW.stage.build(stageIndex, mods.startCount);
+    const run = {
+      plan: plan,
+      mods: mods,
+      squad: LW.squad.makeSquad(mods.startCount, mods),
+      dist: 0,
+      phase: 'run', // run | boss | won | lost
+      time: 0,
+      eventIndex: 0,
+      kills: 0,
+      parts: 0, // 전투 중 주운 부품
+      shake: 0,
+      startCount: mods.startCount,
+      peak: mods.startCount, // 이번 전투에서 가장 많았던 병력 (별 계산 기준)
+      bullets: pool(cfg.pools.bullets, () => ({ active: false, x: 0, y: 0, dmg: 0 })),
+      bolts: pool(cfg.pools.bolts, () => ({ active: false, x: 0, y: 0, vx: 0, vy: 0 })),
+      enemies: pool(cfg.pools.enemies, () => ({
+        active: false, kind: 'grunt', x: 0, y: 0, hp: 0, maxHp: 1,
+        speed: 0, radius: 0.3, cost: 1, bounty: 1, fireTimer: 0, flash: 0, wobble: 0,
+      })),
+      particles: pool(cfg.pools.particles, () => ({
+        active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 1, color: '#fff', size: 1,
+      })),
+      coins: [],
+      barricades: [],
+      barrels: [],
+      guns: [], // 드럼통에서 떨어진 총 픽업
+      gates: [],
+      boss: null,
+      out: [], // 이번 프레임에 벌어진 일 (사운드·HUD 용)
+    };
+    return run;
+  }
+
+  function emit(run, type, data) {
+    if (run.out.length < 24) run.out.push(data ? Object.assign({ type: type }, data) : { type: type });
+  }
+
+  function spawnParticles(run, x, y, count, color, power) {
+    for (let i = 0; i < count; i++) {
+      const p = takeFrom(run.particles);
+      if (!p) return;
+      const a = Math.random() * Math.PI * 2;
+      const s = power * (0.4 + Math.random() * 0.8);
+      p.active = true;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(a) * s;
+      p.vy = Math.sin(a) * s;
+      p.life = p.maxLife = 0.28 + Math.random() * 0.3;
+      p.color = color;
+      p.size = 0.06 + Math.random() * 0.07;
+    }
+  }
+
+  /** 현재 부대 규모가 만드는 추가 압박(적 체력 배수). */
+  function pressureHp(run) {
+    const p = LW.config.pressure;
+    return 1 + Math.min(p.maxEnemyHpBonus, run.squad.count * p.enemyHpPerUnit);
+  }
+
+  /** 부대가 클수록 한 번 부딪힐 때 잃는 병력도 커진다 (수가 늘어도 긴장이 유지되게). */
+  function pressureContact(run) {
+    const p = LW.config.pressure;
+    return 1 + Math.min(p.maxContactBonus, run.squad.count * p.contactPerUnit);
+  }
+
+  function spawnEnemy(run, kind, x, y) {
+    const def = LW.config.enemyKinds[kind];
+    const e = takeFrom(run.enemies);
+    if (!e) return null;
+    e.active = true;
+    e.kind = kind;
+    e.x = U.clamp(x, -LW.config.world.roadHalfWidth + 0.4, LW.config.world.roadHalfWidth - 0.4);
+    e.y = y;
+    e.maxHp = e.hp = Math.max(1, Math.round(def.hp * run.plan.enemyHpMult * pressureHp(run)));
+    e.speed = def.speed;
+    e.radius = def.radius;
+    e.cost = Math.max(1, Math.round(def.cost * pressureContact(run)));
+    e.bounty = def.bounty;
+    e.fireTimer = def.fireInterval ? def.fireInterval * 0.6 : 0;
+    e.flash = 0;
+    e.wobble = Math.random() * Math.PI * 2;
+    return e;
+  }
+
+  /** 카메라 앞쪽으로 들어온 이벤트를 실제 오브젝트로 만든다. */
+  function spawnAhead(run) {
+    const limit = run.dist + LW.config.world.cameraFront + 6;
+    const events = run.plan.events;
+    while (run.eventIndex < events.length && events[run.eventIndex].y <= limit) {
+      const ev = events[run.eventIndex++];
+      if (ev.type === 'gate') {
+        run.gates.push({ y: ev.y, doors: ev.doors, used: false, flash: 0 });
+      } else if (ev.type === 'wave') {
+        // 부대가 커진 만큼 적도 겹쳐서 몰려온다 (스폰 시점의 병력 기준)
+        const p = LW.config.pressure;
+        const extra = Math.min(p.maxExtraWaves, Math.floor(run.squad.count / p.extraWavePer));
+        for (const entry of ev.entries) {
+          spawnEnemy(run, entry.kind, entry.x, entry.y);
+          for (let k = 1; k <= extra; k++) {
+            const side = k % 2 === 0 ? 1 : -1;
+            spawnEnemy(run, entry.kind, entry.x + side * (0.7 + k * 0.35), entry.y + k * 1.9);
+          }
+        }
+      } else if (ev.type === 'barricade') {
+        run.barricades.push({
+          x: ev.x, y: ev.y, hp: ev.hp, maxHp: ev.hp, broken: false, flash: 0,
+        });
+      } else if (ev.type === 'barrel') {
+        run.barrels.push({
+          x: ev.x, y: ev.y, hp: ev.hp, maxHp: ev.hp, broken: false, passed: false,
+          flash: 0, bob: Math.random() * 6,
+        });
+      } else if (ev.type === 'coin') {
+        run.coins.push({ x: ev.x, y: ev.y, taken: false, bob: Math.random() * 6 });
+      }
+    }
+  }
+
+  function fire(run, dt) {
+    const squad = run.squad;
+    squad.fireTimer -= dt;
+    if (squad.fireTimer > 0) return;
+    squad.fireTimer += squad.interval();
+    const n = squad.volleyBullets();
+    const dmg = squad.volleyDamage() / n;
+    // 총알은 진형 폭에 고르게 퍼진다 — 부대가 넓어지면 사격 범위도 넓어진다.
+    const spread = squad.halfWidth();
+    const step = n > 1 ? (spread * 2) / (n - 1) : 0;
+    for (let i = 0; i < n; i++) {
+      const b = takeFrom(run.bullets);
+      if (!b) break;
+      b.active = true;
+      b.x = squad.x - spread + i * step;
+      b.y = run.dist + 0.25;
+      b.dmg = dmg;
+    }
+    emit(run, 'shoot');
+  }
+
+  function killEnemy(run, e) {
+    e.active = false;
+    run.kills++;
+    run.parts += e.bounty;
+    spawnParticles(run, e.x, e.y, 7, '#ffce6a', 3.2);
+    emit(run, 'kill');
+  }
+
+  function damageBoss(run, amount) {
+    const boss = run.boss;
+    boss.hp -= amount;
+    boss.flash = 0.12;
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      boss.dead = true;
+      run.shake = Math.max(run.shake, 0.7);
+      spawnParticles(run, boss.x, boss.y, 40, '#ff9a4a', 6);
+      run.phase = 'won';
+      emit(run, 'win');
+    }
+  }
+
+  function updateBullets(run, dt) {
+    const speed = LW.config.squad.bulletSpeed;
+    const br = LW.config.squad.bulletRadius;
+    const maxY = run.dist + LW.config.world.cameraFront + 8;
+    for (const b of run.bullets) {
+      if (!b.active) continue;
+      b.y += speed * dt;
+      if (b.y > maxY) {
+        b.active = false;
+        continue;
+      }
+      // 적
+      let hit = false;
+      for (const e of run.enemies) {
+        if (!e.active) continue;
+        if (U.hitCircle(b.x, b.y, br, e.x, e.y, e.radius)) {
+          e.hp -= b.dmg;
+          e.flash = 0.08;
+          spawnParticles(run, b.x, b.y, 2, '#fff2c0', 1.6);
+          if (e.hp <= 0) killEnemy(run, e);
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        b.active = false;
+        continue;
+      }
+      // 바리케이드
+      for (const bar of run.barricades) {
+        if (bar.broken) continue;
+        const cfgB = LW.config.barricade;
+        if (Math.abs(b.x - bar.x) <= cfgB.halfWidth && Math.abs(b.y - bar.y) <= cfgB.thickness) {
+          bar.hp -= b.dmg;
+          bar.flash = 0.08;
+          spawnParticles(run, b.x, b.y, 2, '#9fb3cd', 1.6);
+          if (bar.hp <= 0) {
+            bar.broken = true;
+            spawnParticles(run, bar.x, bar.y, 14, '#c8d4e6', 3.4);
+            emit(run, 'break');
+          }
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        b.active = false;
+        continue;
+      }
+      // 드럼통 — 터지면 위의 총이 노면에 떨어진다
+      for (const barrel of run.barrels) {
+        if (barrel.broken) continue;
+        const cfgBar = LW.config.barrel;
+        if (U.hitCircle(b.x, b.y, br, barrel.x, barrel.y, cfgBar.radius)) {
+          barrel.hp -= b.dmg;
+          barrel.flash = 0.08;
+          spawnParticles(run, b.x, b.y, 2, '#ffd08a', 1.6);
+          if (barrel.hp <= 0) breakBarrel(run, barrel);
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        b.active = false;
+        continue;
+      }
+      // 보스
+      const boss = run.boss;
+      if (boss && !boss.dead && U.hitCircle(b.x, b.y, br, boss.x, boss.y, boss.radius)) {
+        b.active = false;
+        damageBoss(run, b.dmg);
+        spawnParticles(run, b.x, b.y, 3, '#ffd9a0', 2.2);
+      }
+    }
+  }
+
+  function breakBarrel(run, barrel) {
+    barrel.broken = true;
+    spawnParticles(run, barrel.x, barrel.y, 16, '#ffb45e', 4);
+    // 위에 얹혀 있던 총이 떨어진다 — 지나가면서 주우면 연사가 빨라진다
+    run.guns.push({ x: barrel.x, y: barrel.y, taken: false, bob: Math.random() * 6, fresh: 0 });
+    emit(run, 'barrel');
+  }
+
+  function updateBarrels(run, prevDist, dt) {
+    const cfgBar = LW.config.barrel;
+    const squad = run.squad;
+    for (const barrel of run.barrels) {
+      barrel.flash = Math.max(0, barrel.flash - dt);
+      barrel.bob += dt * 2.4;
+      if (barrel.broken || barrel.passed) continue;
+      if (prevDist < barrel.y && run.dist >= barrel.y) {
+        barrel.passed = true;
+        // 안 터뜨리고 박으면 병력을 잃는다 (총도 놓친다)
+        if (Math.abs(squad.x - barrel.x) <= cfgBar.radius + squad.halfWidth()) {
+          hurtSquad(run, cfgBar.crushCost, barrel.x, barrel.y);
+          barrel.broken = true;
+          spawnParticles(run, barrel.x, barrel.y, 10, '#c8d4e6', 3);
+        }
+      }
+    }
+  }
+
+  function updateGuns(run, dt) {
+    const squad = run.squad;
+    const hw = squad.halfWidth() + LW.config.weapon.pickupRadius;
+    for (const gun of run.guns) {
+      if (gun.taken) continue;
+      gun.bob += dt * 4.5;
+      gun.fresh += dt;
+      if (gun.y <= run.dist + 0.5 && gun.y > run.dist - 3 && Math.abs(gun.x - squad.x) <= hw) {
+        gun.taken = true;
+        const stacks = squad.pickUpWeapon();
+        spawnParticles(run, gun.x, gun.y, 12, '#ffe27a', 3.4);
+        emit(run, 'weapon', { stacks: stacks });
+      }
+    }
+  }
+
+  function hurtSquad(run, n, x, y) {
+    run.squad.lose(n);
+    run.shake = Math.max(run.shake, 0.28);
+    spawnParticles(run, x, y, 8, '#7fd0ff', 3);
+    emit(run, 'hurt', { amount: n });
+    if (!run.squad.alive() && run.phase !== 'won') {
+      run.phase = 'lost';
+      emit(run, 'lose');
+    }
+  }
+
+  function spawnBolt(run, x, y, tx, ty) {
+    const b = takeFrom(run.bolts);
+    if (!b) return;
+    const dx = tx - x;
+    const dy = ty - y;
+    const len = Math.hypot(dx, dy) || 1;
+    const sp = LW.config.enemyBolt.speed;
+    b.active = true;
+    b.x = x;
+    b.y = y;
+    b.vx = (dx / len) * sp;
+    b.vy = (dy / len) * sp;
+  }
+
+  function updateEnemies(run, dt) {
+    const squad = run.squad;
+    const front = run.dist;
+    const hw = squad.halfWidth();
+    for (const e of run.enemies) {
+      if (!e.active) continue;
+      e.flash = Math.max(0, e.flash - dt);
+      e.wobble += dt * 6;
+      e.y -= e.speed * dt;
+
+      if (e.fireTimer > 0) {
+        e.fireTimer -= dt;
+        if (e.fireTimer <= 0) {
+          e.fireTimer = LW.config.enemyKinds[e.kind].fireInterval;
+          spawnBolt(run, e.x, e.y, squad.x, front);
+        }
+      }
+
+      // 스쿼드 선두 라인 접촉
+      if (e.y <= front + e.radius && Math.abs(e.x - squad.x) <= hw + e.radius) {
+        hurtSquad(run, e.cost, e.x, e.y);
+        e.active = false;
+        continue;
+      }
+      if (e.y < front - 8) e.active = false; // 옆으로 흘려보냄
+    }
+  }
+
+  function updateBolts(run, dt) {
+    const squad = run.squad;
+    const hw = squad.halfWidth();
+    const r = LW.config.enemyBolt.radius;
+    for (const b of run.bolts) {
+      if (!b.active) continue;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.y < run.dist - 3 || Math.abs(b.x) > LW.config.world.roadHalfWidth + 2) {
+        b.active = false;
+        continue;
+      }
+      if (b.y <= run.dist + 0.3 && Math.abs(b.x - squad.x) <= hw + r) {
+        b.active = false;
+        hurtSquad(run, Math.round(LW.config.enemyBolt.cost * pressureContact(run)), b.x, b.y);
+      }
+    }
+  }
+
+  function updateGates(run, prevDist) {
+    const squad = run.squad;
+    for (const gate of run.gates) {
+      gate.flash = Math.max(0, gate.flash - 0.02);
+      if (gate.used) continue;
+      if (prevDist < gate.y && run.dist >= gate.y) {
+        const door = squad.x < 0 ? gate.doors[0] : gate.doors[1];
+        const before = squad.count;
+        squad.count = LW.gates.apply(squad.count, door);
+        gate.used = true;
+        gate.flash = 1;
+        gate.chosen = squad.x < 0 ? 0 : 1;
+        const delta = squad.count - before;
+        spawnParticles(run, squad.x, gate.y, 12, delta >= 0 ? '#7dffa8' : '#ff8b96', 3.4);
+        emit(run, 'gate', { delta: delta, buff: delta >= 0, count: squad.count });
+        if (!squad.alive()) {
+          run.phase = 'lost';
+          emit(run, 'lose');
+        }
+      }
+    }
+  }
+
+  function updateCoins(run) {
+    const squad = run.squad;
+    const hw = squad.halfWidth() + 0.4;
+    for (const c of run.coins) {
+      if (c.taken) continue;
+      if (c.y <= run.dist + 0.4 && c.y > run.dist - 2 && Math.abs(c.x - squad.x) <= hw) {
+        c.taken = true;
+        run.parts += 2;
+        emit(run, 'coin');
+      }
+    }
+  }
+
+  function updateBarricades(run, prevDist, dt) {
+    const cfgB = LW.config.barricade;
+    const squad = run.squad;
+    for (const bar of run.barricades) {
+      bar.flash = Math.max(0, bar.flash - dt);
+      if (bar.broken || bar.passed) continue;
+      if (prevDist < bar.y && run.dist >= bar.y) {
+        bar.passed = true;
+        if (Math.abs(squad.x - bar.x) <= cfgB.halfWidth + squad.halfWidth()) {
+          hurtSquad(run, cfgB.crushCost, bar.x, bar.y);
+          bar.broken = true;
+          spawnParticles(run, bar.x, bar.y, 12, '#c8d4e6', 3);
+        }
+      }
+    }
+  }
+
+  function updateBoss(run, dt) {
+    const cfgBoss = LW.config.boss;
+    const boss = run.boss;
+    if (!boss || boss.dead) return;
+    boss.flash = Math.max(0, boss.flash - dt);
+    boss.bob += dt * 2.2;
+
+    // 플레이어 쪽으로 천천히 접근 + 좌우 추적
+    boss.y -= cfgBoss.speed * dt;
+    boss.x = U.damp(boss.x, run.squad.x, 0.9, dt);
+
+    boss.spawnTimer -= dt;
+    if (boss.spawnTimer <= 0) {
+      boss.spawnTimer = cfgBoss.spawnInterval;
+      const kinds = run.plan.theme.kinds;
+      for (let i = 0; i < 3; i++) {
+        spawnEnemy(run, kinds[i % kinds.length], boss.x + (i - 1) * 1.5, boss.y - 1.2);
+      }
+      emit(run, 'bossSpawn');
+    }
+
+    boss.fireTimer -= dt;
+    if (boss.fireTimer <= 0) {
+      boss.fireTimer = cfgBoss.fireInterval;
+      for (let i = -1; i <= 1; i++) {
+        spawnBolt(run, boss.x, boss.y - boss.radius, run.squad.x + i * 2.2, run.dist);
+      }
+    }
+
+    if (boss.y <= run.dist + boss.radius + 0.6) {
+      hurtSquad(run, Math.round(cfgBoss.contactCost * pressureContact(run)), boss.x, boss.y);
+      boss.y += 4; // 밀려남 — 즉사가 아니라 압박
+      run.shake = Math.max(run.shake, 0.5);
+    }
+  }
+
+  /** 뒤로 흘러간 오브젝트는 버린다 — 배열이 무한히 길어지지 않게. */
+  function cleanupPassed(run) {
+    const behind = run.dist - 14;
+    for (let i = run.gates.length - 1; i >= 0; i--) if (run.gates[i].y < behind) run.gates.splice(i, 1);
+    for (let i = run.coins.length - 1; i >= 0; i--) if (run.coins[i].y < behind) run.coins.splice(i, 1);
+    for (let i = run.barricades.length - 1; i >= 0; i--) if (run.barricades[i].y < behind) run.barricades.splice(i, 1);
+    for (let i = run.barrels.length - 1; i >= 0; i--) if (run.barrels[i].y < behind) run.barrels.splice(i, 1);
+    for (let i = run.guns.length - 1; i >= 0; i--) if (run.guns[i].y < behind) run.guns.splice(i, 1);
+  }
+
+  function updateParticles(run, dt) {
+    for (const p of run.particles) {
+      if (!p.active) continue;
+      p.life -= dt;
+      if (p.life <= 0) {
+        p.active = false;
+        continue;
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= 0.92;
+      p.vy *= 0.92;
+    }
+  }
+
+  /** @param input {{targetX:number}} */
+  function update(run, dt, input) {
+    run.out.length = 0;
+    if (run.phase === 'won' || run.phase === 'lost') {
+      updateParticles(run, dt);
+      run.shake = Math.max(0, run.shake - dt * 2);
+      return run.out;
+    }
+
+    run.time += dt;
+    run.shake = Math.max(0, run.shake - dt * 2);
+
+    const cfg = LW.config;
+    const squad = run.squad;
+    const limit = cfg.world.roadHalfWidth - squad.halfWidth();
+    squad.targetX = U.clamp(input.targetX, -limit, limit);
+    squad.x = U.damp(squad.x, squad.targetX, cfg.squad.moveSpeed * squad.mods.speedMult, dt);
+
+    const prevDist = run.dist;
+    if (run.phase === 'run') {
+      run.dist += cfg.squad.advanceSpeed * dt;
+      if (run.dist >= run.plan.bossY - cfg.boss.standoff) {
+        run.dist = run.plan.bossY - cfg.boss.standoff;
+        run.phase = 'boss';
+        // 큰 부대를 데려오면 보스도 그만큼 단단해진다 — 체력바가 늘 의미 있게.
+        const p = LW.config.pressure;
+        const bossHp = Math.round(
+          run.plan.bossHp * (1 + Math.min(p.maxBossHpBonus, squad.count * p.bossHpPerUnit))
+        );
+        run.boss = {
+          x: 0,
+          y: run.plan.bossY,
+          hp: bossHp,
+          maxHp: bossHp,
+          radius: cfg.boss.radius,
+          spawnTimer: 1.6,
+          fireTimer: 2.2,
+          flash: 0,
+          bob: 0,
+          dead: false,
+        };
+        emit(run, 'bossStart');
+      }
+    }
+
+    spawnAhead(run);
+    fire(run, dt);
+    updateBullets(run, dt);
+    updateEnemies(run, dt);
+    updateBolts(run, dt);
+    updateGates(run, prevDist);
+    updateCoins(run);
+    updateBarricades(run, prevDist, dt);
+    updateBarrels(run, prevDist, dt);
+    updateGuns(run, dt);
+    if (squad.tickBuff(dt)) emit(run, 'weaponEnd');
+    updateBoss(run, dt);
+    updateParticles(run, dt);
+    cleanupPassed(run);
+    if (squad.count > run.peak) run.peak = squad.count;
+
+    return run.out;
+  }
+
+  /** 진행도 0..1 — HUD 게이지용. */
+  function progress(run) {
+    if (run.phase === 'boss' || run.phase === 'won') {
+      if (!run.boss) return 1;
+      return 1; // 보스 단계는 보스 체력바가 진행도 역할을 한다
+    }
+    return U.clamp(run.dist / Math.max(1, run.plan.bossY - LW.config.boss.standoff), 0, 1);
+  }
+
+  /** 결과 집계 — 세이브에 넘길 값. */
+  function result(run) {
+    const win = run.phase === 'won';
+    const survived = run.squad.count;
+    // 별은 "얼마나 안 잃고 끝냈나" — 시작 인원이 아니라 최대 인원 대비로 본다.
+    const ratio = survived / Math.max(1, run.peak);
+    let stars = 0;
+    if (win) {
+      stars = 1;
+      const th = LW.config.starThresholds;
+      if (ratio >= th.two) stars = 2;
+      if (ratio >= th.three) stars = 3;
+    }
+    const base = win ? run.plan.rewardBase : Math.round(run.plan.rewardBase * 0.3);
+    const coins = Math.round((base + run.parts + (win ? survived * 0.4 : 0)) * run.mods.lootMult);
+    return {
+      win: win,
+      stage: run.plan.stage,
+      stars: stars,
+      survived: survived,
+      startCount: run.startCount,
+      peak: run.peak,
+      kills: run.kills,
+      coins: coins,
+    };
+  }
+
+  LW.run = { create, update, progress, result, spawnEnemy };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 화면 효과(뷰 전용) — 광고에서 보던 "큰 숫자가 뻥 뜨는" 연출.
+ * 게임 규칙과 무관하다. run.update 가 뱉은 이벤트를 받아 떠오르는 텍스트로 바꾼다.
+ */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  const MAX_POPUPS = 24;
+  const popups = [];
+  for (let i = 0; i < MAX_POPUPS; i++) {
+    popups.push({ active: false, x: 0, y: 0, rise: 0, life: 0, maxLife: 1, text: '', sub: '', color: '#fff', size: 1 });
+  }
+
+  function take() {
+    for (const p of popups) if (!p.active) return p;
+    return popups[0]; // 가장 오래된 것을 덮어쓴다
+  }
+
+  function push(x, y, text, sub, color, size, life) {
+    const p = take();
+    p.active = true;
+    p.x = x;
+    p.y = y;
+    p.rise = 0;
+    p.life = p.maxLife = life || 1.1;
+    p.text = text;
+    p.sub = sub || '';
+    p.color = color;
+    p.size = size || 1;
+    return p;
+  }
+
+  /** 이번 프레임 이벤트 -> 연출 */
+  function handle(events, run) {
+    for (const ev of events) {
+      if (ev.type === 'gate') {
+        const buff = ev.delta >= 0;
+        push(
+          run.squad.x,
+          run.dist + 1.2,
+          (buff ? '+' : '') + ev.delta,
+          '👥 ' + LW.util.formatCount(ev.count),
+          buff ? '#7dffa8' : '#ff8b96',
+          buff ? 1.35 : 1.1,
+          1.25
+        );
+      } else if (ev.type === 'hurt' && ev.amount >= 3) {
+        push(run.squad.x, run.dist + 0.8, '-' + ev.amount, '', '#ff8b96', 0.95, 0.8);
+      } else if (ev.type === 'weapon') {
+        push(run.squad.x, run.dist + 1.4, '연사 UP!', '×' + ev.stacks, '#ffe27a', 1.2, 1.1);
+      } else if (ev.type === 'bossStart') {
+        push(0, run.dist + 9, '대장 로봇!', '', '#ffd0d6', 1.5, 1.6);
+      } else if (ev.type === 'win') {
+        push(0, run.dist + 6, '돌파!', '', '#ffe27a', 1.9, 2);
+      } else if (ev.type === 'lose') {
+        push(run.squad.x, run.dist + 1, '전멸…', '', '#ff9aa4', 1.6, 2);
+      }
+    }
+  }
+
+  function update(dt) {
+    for (const p of popups) {
+      if (!p.active) continue;
+      p.life -= dt;
+      p.rise += dt * 52; // 화면 위로 떠오른다 (픽셀)
+      if (p.life <= 0) p.active = false;
+    }
+  }
+
+  function reset() {
+    for (const p of popups) p.active = false;
+  }
+
+  LW.fx = { popups, handle, update, reset, push };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 원근(의사 3D) 렌더러 — 부대 뒤 어깨 시점으로 도로가 지평선까지 뻗는다.
+ * run 상태를 읽어 그리기만 한다 (상태를 절대 바꾸지 않는다).
+ *
+ * 투영: 카메라는 부대 선두 뒤 back 만큼, 높이 height 에 있다.
+ *   d(깊이)   = wy - camY
+ *   s(축척)   = focal / d
+ *   화면x     = 화면중앙 + wx * s
+ *   화면y     = 지평선 + (camZ - 물체높이) * s
+ * 깊이가 클수록 작고 지평선에 가깝게 그려진다.
+ */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  /* ---------- 배경 소품 (한 번만 만들어 재사용) ---------- */
+
+  const bgRng = LW.util.makeRng(20260731);
+  const PROPS = [];
+  for (let i = 0; i < 60; i++) {
+    PROPS.push({
+      side: i % 2 === 0 ? -1 : 1,
+      off: bgRng.range(0.9, 7),
+      y: bgRng.range(0, 200),
+      w: bgRng.range(0.5, 2.2),
+      h: bgRng.range(0.6, 4.5),
+      tint: bgRng.range(-0.18, 0.16),
+    });
+  }
+  const SKYLINE = [];
+  for (let i = 0; i < 34; i++) {
+    SKYLINE.push({ x: bgRng.range(-1, 1), w: bgRng.range(0.02, 0.09), h: bgRng.range(0.1, 0.62) });
+  }
+
+  /* ---------- 카메라 ---------- */
+
+  function makeCamera(canvas) {
+    return {
+      canvas: canvas,
+      w: 0,
+      h: 0,
+      focal: 1,
+      horizon: 0,
+      camY: 0,
+      camZ: 0,
+      shakeX: 0,
+      shakeY: 0,
+      // 정렬용 그리기 목록 (매 프레임 재사용 — 핫패스 할당 금지)
+      list: [],
+      count: 0,
+    };
+  }
+
+  function updateCamera(cam, run) {
+    const cfg = LW.config.camera;
+    const w = cam.canvas.width;
+    const h = cam.canvas.height;
+    cam.w = w;
+    cam.h = h;
+    cam.focal = cfg.focalRatio * Math.min(w, h * 0.62);
+    cam.horizon = h * cfg.horizonRatio;
+    cam.camY = run.dist - cfg.back;
+    cam.camZ = cfg.height;
+    if (run.shake > 0) {
+      const s = run.shake * 10;
+      cam.shakeX = (Math.random() - 0.5) * s;
+      cam.shakeY = (Math.random() - 0.5) * s;
+    } else {
+      cam.shakeX = cam.shakeY = 0;
+    }
+  }
+
+  function depthOf(cam, wy) {
+    return wy - cam.camY;
+  }
+
+  function scaleAt(cam, d) {
+    return cam.focal / d;
+  }
+
+  function px(cam, wx, s) {
+    return cam.w / 2 + wx * s + cam.shakeX;
+  }
+
+  /** 높이 z(월드) 지점의 화면 y. z=0 이 노면. */
+  function py(cam, s, z) {
+    return cam.horizon + (cam.camZ - z) * s + cam.shakeY;
+  }
+
+  /* ---------- 그리기 도우미 ---------- */
+
+  function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+
+  function shade(hex, amount) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16) & 255;
+    let g = (n >> 8) & 255;
+    let b = n & 255;
+    const t = amount < 0 ? 0 : 255;
+    const p = Math.abs(amount);
+    r = Math.round((t - r) * p + r);
+    g = Math.round((t - g) * p + g);
+    b = Math.round((t - b) * p + b);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  /** 거리에 따라 배경색으로 흐려진다 (원경 안개) */
+  function fogAlpha(d) {
+    return LW.util.clamp((d - 26) / 90, 0, 0.72);
+  }
+
+  function groundShadow(ctx, x, y, s, radius) {
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, radius * s, radius * s * 0.34, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* ---------- 하늘·지면 ---------- */
+
+  function drawSky(ctx, cam, run) {
+    const theme = run.plan.theme;
+    const sky = theme.sky || ['#16202f', '#41536f'];
+    const grad = ctx.createLinearGradient(0, 0, 0, cam.horizon + 4);
+    grad.addColorStop(0, sky[0]);
+    grad.addColorStop(1, sky[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, cam.w, cam.horizon + 6);
+
+    // 해/달 무리
+    ctx.fillStyle = 'rgba(255,240,200,0.16)';
+    ctx.beginPath();
+    ctx.arc(cam.w * 0.68, cam.horizon * 0.42, cam.horizon * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 원경 실루엣 (부대 전진에 따라 아주 천천히 흐른다)
+    const drift = (run.dist * 0.06) % 2;
+    ctx.fillStyle = theme.far || shade(sky[0], -0.25);
+    for (const b of SKYLINE) {
+      let nx = b.x - drift;
+      if (nx < -1) nx += 2;
+      const bx = (nx * 0.5 + 0.5) * cam.w;
+      const bw = b.w * cam.w;
+      const bh = b.h * cam.horizon;
+      ctx.fillRect(bx - bw / 2, cam.horizon - bh, bw, bh + 2);
+    }
+    // 지평선 안개
+    const haze = ctx.createLinearGradient(0, cam.horizon - cam.h * 0.09, 0, cam.horizon + 2);
+    haze.addColorStop(0, 'rgba(255,255,255,0)');
+    haze.addColorStop(1, 'rgba(255,255,255,0.16)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, cam.horizon - cam.h * 0.09, cam.w, cam.h * 0.09 + 2);
+  }
+
+  function drawGround(ctx, cam, run) {
+    const cfg = LW.config;
+    const theme = run.plan.theme;
+    const near = cfg.camera.near;
+    const far = cfg.camera.far;
+    const half = cfg.world.roadHalfWidth;
+
+    // 길 밖 지면
+    const sideGrad = ctx.createLinearGradient(0, cam.horizon, 0, cam.h);
+    sideGrad.addColorStop(0, shade(theme.side, 0.12));
+    sideGrad.addColorStop(1, shade(theme.side, -0.22));
+    ctx.fillStyle = sideGrad;
+    ctx.fillRect(0, cam.horizon, cam.w, cam.h - cam.horizon);
+
+    const sFar = scaleAt(cam, far);
+    const sNear = scaleAt(cam, near);
+    const yFar = py(cam, sFar, 0);
+    const yNear = py(cam, sNear, 0);
+
+    // 도로 (원근 사다리꼴 — 직선은 원근에서도 직선이라 네 점이면 정확하다)
+    const roadGrad = ctx.createLinearGradient(0, yFar, 0, yNear);
+    roadGrad.addColorStop(0, shade(theme.road, 0.1));
+    roadGrad.addColorStop(1, shade(theme.road, -0.12));
+    ctx.fillStyle = roadGrad;
+    ctx.beginPath();
+    ctx.moveTo(px(cam, -half, sFar), yFar);
+    ctx.lineTo(px(cam, half, sFar), yFar);
+    ctx.lineTo(px(cam, half, sNear), yNear);
+    ctx.lineTo(px(cam, -half, sNear), yNear);
+    ctx.closePath();
+    ctx.fill();
+
+    // 노면 가로 무늬 — 전진감의 핵심
+    const step = 4;
+    const startY = Math.floor((cam.camY + near) / step) * step;
+    for (let wy = startY; wy < cam.camY + cfg.camera.drawDistance; wy += step) {
+      const d = depthOf(cam, wy);
+      if (d < near) continue;
+      const s = scaleAt(cam, d);
+      const y = py(cam, s, 0);
+      const th = Math.max(1, s * 0.06);
+      ctx.fillStyle = 'rgba(0,0,0,' + (0.16 * (1 - fogAlpha(d))).toFixed(3) + ')';
+      ctx.fillRect(px(cam, -half, s), y, half * 2 * s, th);
+    }
+
+    // 차선 점선
+    ctx.lineCap = 'butt';
+    for (const lane of [-half / 3, half / 3]) {
+      for (let wy = startY; wy < cam.camY + cfg.camera.drawDistance; wy += 6) {
+        const d0 = depthOf(cam, wy);
+        const d1 = depthOf(cam, wy + 3);
+        if (d1 < near) continue;
+        const s0 = scaleAt(cam, Math.max(near, d0));
+        const s1 = scaleAt(cam, d1);
+        ctx.strokeStyle = 'rgba(255,255,255,' + (0.24 * (1 - fogAlpha(d1))).toFixed(3) + ')';
+        ctx.lineWidth = Math.max(1, s1 * 0.09);
+        ctx.beginPath();
+        ctx.moveTo(px(cam, lane, s0), py(cam, s0, 0));
+        ctx.lineTo(px(cam, lane, s1), py(cam, s1, 0));
+        ctx.stroke();
+      }
+    }
+
+    // 도로 경계선
+    for (const edge of [-half, half]) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = Math.max(1.5, sNear * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(px(cam, edge, sFar), yFar);
+      ctx.lineTo(px(cam, edge, sNear), yNear);
+      ctx.stroke();
+    }
+
+    // 길가 소품 (기둥·잔해) — 200 월드 단위 주기로 반복
+    for (const prop of PROPS) {
+      const wy = prop.y + Math.ceil((cam.camY - prop.y) / 200) * 200;
+      const d = depthOf(cam, wy);
+      if (d < near || d > cfg.camera.drawDistance) continue;
+      const s = scaleAt(cam, d);
+      const x = px(cam, prop.side * (half + prop.off), s);
+      const yb = py(cam, s, 0);
+      const yt = py(cam, s, prop.h);
+      const w = prop.w * s;
+      ctx.fillStyle = shade(theme.side, prop.tint);
+      ctx.fillRect(x - w / 2, yt, w, yb - yt);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fillRect(x - w / 2, yt, w * 0.3, yb - yt);
+      const fog = fogAlpha(d);
+      if (fog > 0.02) {
+        ctx.fillStyle = 'rgba(' + (theme.sky ? '160,180,200,' : '160,180,200,') + fog.toFixed(3) + ')';
+        ctx.fillRect(x - w / 2, yt, w, yb - yt);
+      }
+    }
+  }
+
+  /* ---------- 오브젝트 (깊이 정렬 후 원경 -> 근경) ---------- */
+
+  function reset(cam) {
+    cam.count = 0;
+  }
+
+  function add(cam, kind, ref, d) {
+    let slot = cam.list[cam.count];
+    if (!slot) slot = cam.list[cam.count] = { kind: '', ref: null, d: 0 };
+    slot.kind = kind;
+    slot.ref = ref;
+    slot.d = d;
+    cam.count++;
+  }
+
+  function byDepth(a, b) {
+    return b.d - a.d; // 먼 것부터
+  }
+
+  function collect(cam, run) {
+    const near = LW.config.camera.near;
+    reset(cam);
+
+    // 부대가 이미 지난 문(=카메라에 너무 가까운 문)은 화면을 덮으므로 그리지 않는다
+    const gateNear = LW.config.camera.back * 0.85;
+    for (const gate of run.gates) {
+      const d = depthOf(cam, gate.y);
+      if (d > gateNear && d < 90) add(cam, 'gate', gate, d);
+    }
+    for (const bar of run.barricades) {
+      if (bar.broken) continue;
+      const d = depthOf(cam, bar.y);
+      if (d > near && d < 90) add(cam, 'barricade', bar, d);
+    }
+    for (const c of run.coins) {
+      if (c.taken) continue;
+      const d = depthOf(cam, c.y);
+      if (d > near && d < 60) add(cam, 'coin', c, d);
+    }
+    for (const barrel of run.barrels) {
+      if (barrel.broken) continue;
+      const d = depthOf(cam, barrel.y);
+      if (d > near && d < 90) add(cam, 'barrel', barrel, d);
+    }
+    for (const gun of run.guns) {
+      if (gun.taken) continue;
+      const d = depthOf(cam, gun.y);
+      if (d > near && d < 60) add(cam, 'gun', gun, d);
+    }
+    for (const e of run.enemies) {
+      if (!e.active) continue;
+      const d = depthOf(cam, e.y);
+      if (d > near && d < 90) add(cam, 'enemy', e, d);
+    }
+    if (run.boss && !run.boss.dead) {
+      const d = depthOf(cam, run.boss.y);
+      if (d > near) add(cam, 'boss', run.boss, d);
+    }
+    for (const b of run.bullets) {
+      if (!b.active) continue;
+      const d = depthOf(cam, b.y);
+      if (d > near && d < 90) add(cam, 'bullet', b, d);
+    }
+    for (const b of run.bolts) {
+      if (!b.active) continue;
+      const d = depthOf(cam, b.y);
+      if (d > near) add(cam, 'bolt', b, d);
+    }
+    for (const p of run.particles) {
+      if (!p.active) continue;
+      const d = depthOf(cam, p.y);
+      if (d > near) add(cam, 'particle', p, d);
+    }
+    // 부대: 줄마다 깊이가 다르다 (뒷줄이 카메라에 가까워 크게 보인다)
+    const squad = run.squad;
+    const formation = LW.squad.fillFormation(squad.formation, squad.count);
+    for (let i = 0; i < formation.length; i++) {
+      const f = formation[i];
+      const d = depthOf(cam, run.dist + f.y);
+      if (d > near) add(cam, 'unit', f, d);
+    }
+
+    // 활성 슬롯만 정렬 대상이 되도록 나머지는 뒤로 밀어 둔다
+    for (let i = cam.count; i < cam.list.length; i++) cam.list[i].d = -Infinity;
+    cam.list.sort(byDepth);
+  }
+
+  function drawUnit(ctx, cam, run, f, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    // 달리는 반동 — 병사마다 위상을 어긋나게 해서 부대가 살아 움직인다
+    const phase = run.time * 12 + (f.i || 0) * 0.8;
+    const stride = Math.sin(phase);
+    const x = px(cam, run.squad.x + f.x, s);
+    const yb = py(cam, s, 0) - Math.abs(stride) * s * 0.035;
+    const hgt = cfg.heights.unit;
+    const body = 0.34 * s;
+    const yTop = py(cam, s, hgt) - Math.abs(stride) * s * 0.035;
+
+    groundShadow(ctx, x, py(cam, s, 0), s, 0.22);
+
+    // 다리 (교차 스텝)
+    ctx.fillStyle = '#26456f';
+    const legH = (yb - yTop) * 0.34;
+    const legW = body * 0.28;
+    ctx.fillRect(x - body * 0.34 + stride * legW * 0.5, yb - legH, legW, legH);
+    ctx.fillRect(x + body * 0.06 - stride * legW * 0.5, yb - legH, legW, legH);
+    // 몸통
+    ctx.fillStyle = '#3f7ddc';
+    roundRect(ctx, x - body / 2, yTop + (yb - yTop) * 0.28, body, (yb - yTop) * 0.44, body * 0.28);
+    ctx.fill();
+    // 배낭 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    roundRect(ctx, x - body / 2, yTop + (yb - yTop) * 0.28, body * 0.34, (yb - yTop) * 0.44, body * 0.28);
+    ctx.fill();
+    // 총 (앞으로 뻗은 형태)
+    ctx.fillStyle = '#1b2432';
+    ctx.fillRect(x + body * 0.16, yTop + (yb - yTop) * 0.22, body * 0.22, (yb - yTop) * 0.3);
+    // 헬멧
+    ctx.fillStyle = '#ffcf4a';
+    ctx.beginPath();
+    ctx.arc(x, yTop + (yb - yTop) * 0.16, body * 0.36, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 선두 줄 총구 화염
+    const squad = run.squad;
+    if (f.y === 0 && squad.fireTimer > squad.interval() - 0.06) {
+      const hot = squad.buffTimer > 0;
+      ctx.fillStyle = hot ? 'rgba(255,196,90,0.98)' : 'rgba(255,232,150,0.95)';
+      ctx.beginPath();
+      ctx.arc(x + body * 0.27, yTop + (yb - yTop) * 0.14, body * (hot ? 0.42 : 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawEnemy(ctx, cam, run, e, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const x = px(cam, e.x, s);
+    const yb = py(cam, s, 0);
+    const hgt = e.kind === 'brute' ? cfg.heights.brute : cfg.heights.enemy;
+    const yt = py(cam, s, hgt);
+    const H = yb - yt;
+    const W = e.radius * 2 * s;
+    const def = cfg.enemyKinds[e.kind];
+    const sway = Math.sin(e.wobble) * W * 0.08;
+    const color = e.flash > 0 ? '#ffffff' : def.color;
+
+    groundShadow(ctx, x, yb, s, e.radius * 0.9);
+
+    // 다리(궤도)
+    ctx.fillStyle = shade(def.color, -0.4);
+    ctx.fillRect(x - W * 0.42, yb - H * 0.3, W * 0.3, H * 0.3);
+    ctx.fillRect(x + W * 0.12, yb - H * 0.3, W * 0.3, H * 0.3);
+
+    // 몸통 (도로와 분리되게 외곽선)
+    ctx.fillStyle = color;
+    roundRect(ctx, x - W / 2 + sway, yt + H * 0.1, W, H * 0.62, W * 0.22);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(10,14,22,0.55)';
+    ctx.lineWidth = Math.max(1, W * 0.06);
+    ctx.stroke();
+    // 금속 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, x - W / 2 + sway, yt + H * 0.1, W * 0.32, H * 0.62, W * 0.22);
+    ctx.fill();
+
+    if (e.kind === 'brute') {
+      ctx.fillStyle = shade(def.color, 0.2);
+      roundRect(ctx, x - W * 0.66 + sway, yt + H * 0.16, W * 0.2, H * 0.4, W * 0.08);
+      ctx.fill();
+      roundRect(ctx, x + W * 0.46 + sway, yt + H * 0.16, W * 0.2, H * 0.4, W * 0.08);
+      ctx.fill();
+    }
+    if (e.kind === 'shooter') {
+      ctx.strokeStyle = '#ffb0f0';
+      ctx.lineWidth = Math.max(1, W * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(x + sway, yt + H * 0.1);
+      ctx.lineTo(x + sway, yt - H * 0.22);
+      ctx.stroke();
+      ctx.fillStyle = '#ffb0f0';
+      ctx.beginPath();
+      ctx.arc(x + sway, yt - H * 0.24, W * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 센서 바 (얼굴 없는 기계)
+    ctx.fillStyle = '#ff5f6d';
+    ctx.fillRect(x - W * 0.26 + sway, yt + H * 0.26, W * 0.52, Math.max(1.5, H * 0.1));
+
+    // 체력
+    if (e.hp < e.maxHp && d < 40) {
+      const bw = W * 1.15;
+      const bh = Math.max(2, s * 0.05);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x - bw / 2, yt - bh * 2.4, bw, bh);
+      ctx.fillStyle = '#ff7a5c';
+      ctx.fillRect(x - bw / 2, yt - bh * 2.4, (bw * e.hp) / e.maxHp, bh);
+    }
+
+    const fog = fogAlpha(d);
+    if (fog > 0.02) {
+      ctx.fillStyle = 'rgba(150,170,195,' + fog.toFixed(3) + ')';
+      roundRect(ctx, x - W / 2 + sway, yt, W, H, W * 0.2);
+      ctx.fill();
+    }
+  }
+
+  function drawBoss(ctx, cam, run, boss, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const x = px(cam, boss.x, s);
+    const yb = py(cam, s, 0);
+    const yt = py(cam, s, cfg.heights.boss);
+    const H = yb - yt;
+    const W = boss.radius * 2 * s;
+    const bob = Math.sin(boss.bob) * H * 0.02;
+
+    groundShadow(ctx, x, yb, s, boss.radius * 1.05);
+
+    // 다리
+    ctx.fillStyle = '#333a4a';
+    ctx.fillRect(x - W * 0.42, yb - H * 0.26, W * 0.32, H * 0.26);
+    ctx.fillRect(x + W * 0.1, yb - H * 0.26, W * 0.32, H * 0.26);
+
+    // 어깨 포드
+    ctx.fillStyle = '#454d60';
+    roundRect(ctx, x - W * 0.78, yt + H * 0.18 + bob, W * 0.26, H * 0.4, W * 0.08);
+    ctx.fill();
+    roundRect(ctx, x + W * 0.52, yt + H * 0.18 + bob, W * 0.26, H * 0.4, W * 0.08);
+    ctx.fill();
+
+    // 몸통
+    ctx.fillStyle = boss.flash > 0 ? '#ffffff' : '#5b6479';
+    roundRect(ctx, x - W / 2, yt + H * 0.12 + bob, W, H * 0.62, W * 0.16);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, x - W / 2, yt + H * 0.12 + bob, W * 0.3, H * 0.62, W * 0.16);
+    ctx.fill();
+
+    // 머리·센서
+    ctx.fillStyle = '#454d60';
+    roundRect(ctx, x - W * 0.24, yt + bob, W * 0.48, H * 0.16, W * 0.06);
+    ctx.fill();
+    ctx.fillStyle = '#ffb43d';
+    ctx.fillRect(x - W * 0.16, yt + H * 0.06 + bob, W * 0.32, H * 0.05);
+    ctx.fillStyle = '#ff4a5c';
+    ctx.fillRect(x - W * 0.34, yt + H * 0.36 + bob, W * 0.68, H * 0.06);
+  }
+
+  function drawGate(ctx, cam, run, gate, d) {
+    const cfg = LW.config;
+    const half = cfg.world.roadHalfWidth;
+    const s = scaleAt(cam, d);
+    const yb = py(cam, s, 0);
+    const yt = py(cam, s, cfg.heights.gate);
+    const H = yb - yt;
+
+    for (let side = 0; side < 2; side++) {
+      const door = gate.doors[side];
+      const x0 = px(cam, side === 0 ? -half : 0, s);
+      const x1 = px(cam, side === 0 ? 0 : half, s);
+      const w = x1 - x0;
+      const buff = LW.gates.looksBuff(door); // 페이크는 초록으로 보인다
+      const used = gate.used;
+      const picked = used && gate.chosen === side;
+
+      ctx.globalAlpha = used ? (picked ? 0.3 : 0.12) : 0.9;
+
+      // 문(반투명 에너지 벽)
+      const g = ctx.createLinearGradient(0, yt, 0, yb);
+      g.addColorStop(0, buff ? 'rgba(70,235,140,0.18)' : 'rgba(240,80,100,0.18)');
+      g.addColorStop(1, buff ? 'rgba(50,210,120,0.72)' : 'rgba(225,60,85,0.72)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x0 + w * 0.03, yt, w * 0.94, H);
+
+      // 기둥·상단 바
+      ctx.fillStyle = buff ? '#2fd97e' : '#ff5d72';
+      const post = Math.max(2, w * 0.04);
+      ctx.fillRect(x0 + w * 0.03, yt, post, H);
+      ctx.fillRect(x1 - w * 0.03 - post, yt, post, H);
+      ctx.fillRect(x0 + w * 0.03, yt, w * 0.94, Math.max(2, H * 0.06));
+
+      // 큰 숫자 (광고에서 보던 그 라벨)
+      const fs = Math.max(12, w * 0.42);
+      ctx.font = '900 ' + fs + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x0 + w / 2;
+      const cy = yt + H * 0.5;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillText(LW.gates.label(door), cx, cy + Math.max(1, fs * 0.05));
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(LW.gates.label(door), cx, cy);
+
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawBarricade(ctx, cam, run, bar, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const hw = cfg.barricade.halfWidth;
+    const x0 = px(cam, bar.x - hw, s);
+    const x1 = px(cam, bar.x + hw, s);
+    const yb = py(cam, s, 0);
+    const yt = py(cam, s, cfg.heights.barricade);
+    const w = x1 - x0;
+    const H = yb - yt;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(x0, yb, w, Math.max(1, s * 0.06));
+
+    ctx.fillStyle = bar.flash > 0 ? '#ffffff' : '#7b879d';
+    ctx.fillRect(x0, yt, w, H);
+    // 경고 사선
+    ctx.fillStyle = 'rgba(255,196,60,0.9)';
+    const stripes = 5;
+    for (let i = 0; i < stripes; i++) {
+      if (i % 2) continue;
+      ctx.fillRect(x0 + (w / stripes) * i, yt + H * 0.32, w / stripes, H * 0.28);
+    }
+    // 체력
+    const bh = Math.max(2, s * 0.05);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x0, yt - bh * 2, w, bh);
+    ctx.fillStyle = '#ffd05e';
+    ctx.fillRect(x0, yt - bh * 2, (w * Math.max(0, bar.hp)) / bar.maxHp, bh);
+  }
+
+  /** 드럼통 — 원통 몸체 + 띠, 위에 총이 얹혀 있다 */
+  function drawBarrel(ctx, cam, run, barrel, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const x = px(cam, barrel.x, s);
+    const yb = py(cam, s, 0);
+    const yt = py(cam, s, cfg.barrel.height);
+    const w = cfg.barrel.radius * 2 * s;
+    const H = yb - yt;
+
+    groundShadow(ctx, x, yb, s, cfg.barrel.radius * 0.95);
+
+    // 몸통
+    const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+    const base = barrel.flash > 0 ? '#ffffff' : '#d8613a';
+    g.addColorStop(0, shade(base, -0.3));
+    g.addColorStop(0.35, base);
+    g.addColorStop(1, shade(base, -0.45));
+    ctx.fillStyle = g;
+    ctx.fillRect(x - w / 2, yt, w, H);
+    // 위/아래 타원 (원통 느낌)
+    ctx.fillStyle = shade(base, 0.18);
+    ctx.beginPath();
+    ctx.ellipse(x, yt, w / 2, w * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 띠 두 줄
+    ctx.fillStyle = 'rgba(20,24,32,0.45)';
+    ctx.fillRect(x - w / 2, yt + H * 0.3, w, Math.max(1, H * 0.08));
+    ctx.fillRect(x - w / 2, yt + H * 0.62, w, Math.max(1, H * 0.08));
+    // 체력
+    if (barrel.hp < barrel.maxHp) {
+      const bh = Math.max(2, s * 0.04);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x - w / 2, yt - bh * 2.2, w, bh);
+      ctx.fillStyle = '#ffd05e';
+      ctx.fillRect(x - w / 2, yt - bh * 2.2, (w * Math.max(0, barrel.hp)) / barrel.maxHp, bh);
+    }
+
+    // 위에 얹힌 총 (쏴서 터뜨리면 떨어진다)
+    drawGunIcon(ctx, cam, barrel.x, cfg.barrel.gunZ + Math.sin(barrel.bob) * 0.06, s, 1);
+  }
+
+  /** 총 픽업 아이콘 — 노면에 떨어져 반짝이는 상태 */
+  function drawGun(ctx, cam, run, gun, d) {
+    const s = scaleAt(cam, d);
+    const z = LW.config.heights.gun + Math.sin(gun.bob) * 0.1;
+    // 빛기둥
+    const x = px(cam, gun.x, s);
+    const yb = py(cam, s, 0);
+    const grad = ctx.createLinearGradient(0, py(cam, s, z + 1.2), 0, yb);
+    grad.addColorStop(0, 'rgba(255,226,122,0)');
+    grad.addColorStop(1, 'rgba(255,226,122,0.35)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 0.28 * s, py(cam, s, z + 1.2), 0.56 * s, yb - py(cam, s, z + 1.2));
+    drawGunIcon(ctx, cam, gun.x, z, s, 1.15);
+  }
+
+  /** 총 모양 (토이 블래스터 실루엣) */
+  function drawGunIcon(ctx, cam, wx, z, s, boost) {
+    const x = px(cam, wx, s);
+    const y = py(cam, s, z);
+    const u = 0.24 * s * (boost || 1);
+
+    // 후광
+    ctx.fillStyle = 'rgba(255,226,122,0.28)';
+    ctx.beginPath();
+    ctx.arc(x, y, u * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#2d3648';
+    roundRect(ctx, x - u * 1.5, y - u * 0.5, u * 2.6, u, u * 0.3); // 총열
+    ctx.fill();
+    roundRect(ctx, x - u * 0.2, y - u * 0.2, u * 0.9, u * 1.5, u * 0.25); // 손잡이
+    ctx.fill();
+    ctx.fillStyle = '#ffcf4a';
+    roundRect(ctx, x - u * 1.5, y - u * 0.5, u * 0.9, u, u * 0.3); // 포인트 색
+    ctx.fill();
+    ctx.fillStyle = '#7fe0ff';
+    roundRect(ctx, x - u * 0.5, y - u * 1.15, u * 1.1, u * 0.6, u * 0.2); // 탄창(파랑)
+    ctx.fill();
+  }
+
+  function drawCoin(ctx, cam, run, c, d) {
+    const s = scaleAt(cam, d);
+    const x = px(cam, c.x, s);
+    const bob = Math.sin(run.time * 5 + c.bob) * 0.1;
+    const y = py(cam, s, LW.config.heights.coin + bob);
+    const r = 0.17 * s;
+    ctx.fillStyle = '#ffd45e';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(120,80,10,0.5)';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawBullet(ctx, cam, run, b, d) {
+    const s = scaleAt(cam, d);
+    const x = px(cam, b.x, s);
+    const y = py(cam, s, 0.55);
+    const len = Math.max(2, s * 0.34);
+    const w = Math.max(1.2, s * 0.09);
+    ctx.fillStyle = '#fff0b0';
+    roundRect(ctx, x - w / 2, y - len, w, len, w * 0.5);
+    ctx.fill();
+  }
+
+  function drawBolt(ctx, cam, run, b, d) {
+    const s = scaleAt(cam, d);
+    const x = px(cam, b.x, s);
+    const y = py(cam, s, 0.5);
+    const r = Math.max(1.5, LW.config.enemyBolt.radius * s);
+    ctx.fillStyle = 'rgba(255,150,90,0.35)';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff8b5c';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawParticle(ctx, cam, run, p, d) {
+    const s = scaleAt(cam, d);
+    const a = p.life / p.maxLife;
+    const size = p.size * s * (0.5 + a);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(px(cam, p.x, s) - size / 2, py(cam, s, 0.55) - size / 2, size, size);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- 떠오르는 숫자 (fx) ---------- */
+
+  function drawPopups(ctx, cam, run) {
+    if (!LW.fx) return;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const p of LW.fx.popups) {
+      if (!p.active) continue;
+      const d = depthOf(cam, p.y);
+      if (d < LW.config.camera.near) continue;
+      const s = scaleAt(cam, d);
+      const x = px(cam, p.x, s);
+      // 화면 아래 HUD(병력 수·버프 칩)와 겹치지 않게 위로 올려 잡는다
+      const y = Math.min(py(cam, s, 1.5), cam.h * 0.74) - p.rise;
+      const t = p.life / p.maxLife;
+      const fs = Math.max(14, cam.w * 0.075 * p.size * (1.25 - t * 0.25));
+      ctx.globalAlpha = Math.min(1, t * 2.2);
+      ctx.font = '900 ' + fs + 'px system-ui, sans-serif';
+      ctx.lineWidth = Math.max(3, fs * 0.16);
+      ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+      ctx.strokeText(p.text, x, y);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, x, y);
+      if (p.sub) {
+        const sfs = fs * 0.42;
+        ctx.font = '800 ' + sfs + 'px system-ui, sans-serif';
+        ctx.lineWidth = Math.max(2, sfs * 0.18);
+        ctx.strokeText(p.sub, x, y + fs * 0.72);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(p.sub, x, y + fs * 0.72);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---------- 화면 하단 비네트 (부대가 도로에 붙어 보이게) ---------- */
+
+  function drawVignette(ctx, cam) {
+    const g = ctx.createLinearGradient(0, cam.h * 0.82, 0, cam.h);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.38)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, cam.h * 0.82, cam.w, cam.h * 0.18);
+  }
+
+  function draw(ctx, cam, run) {
+    updateCamera(cam, run);
+    drawSky(ctx, cam, run);
+    drawGround(ctx, cam, run);
+
+    collect(cam, run);
+    for (let i = 0; i < cam.count; i++) {
+      const item = cam.list[i];
+      switch (item.kind) {
+        case 'gate':
+          drawGate(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'barricade':
+          drawBarricade(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'coin':
+          drawCoin(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'barrel':
+          drawBarrel(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'gun':
+          drawGun(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'enemy':
+          drawEnemy(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'boss':
+          drawBoss(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'unit':
+          drawUnit(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'bullet':
+          drawBullet(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'bolt':
+          drawBolt(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'particle':
+          drawParticle(ctx, cam, run, item.ref, item.d);
+          break;
+        default:
+          break;
+      }
+    }
+
+    // 그린 것보다 병력이 많으면 발밑에 숫자 배지
+    const squad = run.squad;
+    if (squad.count > LW.config.squad.maxDrawn) {
+      const s = scaleAt(cam, LW.config.camera.back);
+      const x = px(cam, squad.x, s);
+      const y = py(cam, s, 0) + Math.max(14, s * 0.24);
+      const fs = Math.max(13, cam.w * 0.04);
+      ctx.font = '900 ' + fs + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(3, fs * 0.2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.strokeText('+' + (squad.count - LW.config.squad.maxDrawn), x, y);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('+' + (squad.count - LW.config.squad.maxDrawn), x, y);
+    }
+
+    drawVignette(ctx, cam);
+    drawPopups(ctx, cam, run);
+  }
+
+  LW.render = { makeCamera, draw, shade };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* WebAudio 로 만드는 아주 작은 효과음 — 오디오 파일 없음. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  let ctx = null;
+  let master = null;
+  let enabled = true;
+  let lastShot = 0;
+
+  function ensure() {
+    if (ctx) return ctx;
+    const AC = global.AudioContext || global.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0.28;
+    master.connect(ctx.destination);
+    return ctx;
+  }
+
+  function blip(freq, dur, type, gain) {
+    if (!enabled) return;
+    const ac = ensure();
+    if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type || 'square';
+    osc.frequency.value = freq;
+    g.gain.value = 0;
+    g.gain.linearRampToValueAtTime(gain == null ? 0.5 : gain, ac.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    osc.connect(g);
+    g.connect(master);
+    osc.start();
+    osc.stop(ac.currentTime + dur + 0.02);
+  }
+
+  function sweep(from, to, dur, type) {
+    if (!enabled) return;
+    const ac = ensure();
+    if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type || 'sawtooth';
+    osc.frequency.setValueAtTime(from, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), ac.currentTime + dur);
+    g.gain.value = 0.4;
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    osc.connect(g);
+    g.connect(master);
+    osc.start();
+    osc.stop(ac.currentTime + dur + 0.02);
+  }
+
+  /** run.update 가 뱉은 이벤트 목록을 소리로 바꾼다. */
+  function play(events, now) {
+    for (const ev of events) {
+      switch (ev.type) {
+        case 'shoot':
+          if (now - lastShot > 70) {
+            lastShot = now;
+            blip(760, 0.05, 'square', 0.16);
+          }
+          break;
+        case 'kill':
+          blip(180, 0.08, 'triangle', 0.3);
+          break;
+        case 'coin':
+          blip(1180, 0.07, 'sine', 0.3);
+          break;
+        case 'gate':
+          if (ev.buff) sweep(420, 900, 0.22, 'triangle');
+          else sweep(420, 140, 0.28, 'sawtooth');
+          break;
+        case 'hurt':
+          blip(120, 0.12, 'sawtooth', 0.35);
+          break;
+        case 'break':
+          blip(90, 0.16, 'square', 0.3);
+          break;
+        case 'barrel':
+          blip(140, 0.14, 'sawtooth', 0.32);
+          break;
+        case 'weapon':
+          sweep(700, 1500, 0.22, 'square');
+          break;
+        case 'bossStart':
+          sweep(120, 320, 0.6, 'sawtooth');
+          break;
+        case 'win':
+          blip(660, 0.12, 'square', 0.4);
+          setTimeout(() => blip(880, 0.16, 'square', 0.4), 130);
+          setTimeout(() => blip(1180, 0.22, 'square', 0.4), 280);
+          break;
+        case 'lose':
+          sweep(400, 90, 0.7, 'sawtooth');
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  LW.audio = {
+    play: play,
+    unlock: ensure,
+    setEnabled(v) {
+      enabled = !!v;
+    },
+    isEnabled() {
+      return enabled;
+    },
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* DOM 화면·HUD. 게임 로직은 여기 두지 않는다 (콜백으로만 알린다). */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function create(handlers) {
+    const el = {
+      hud: $('hud'),
+      stageName: $('hud-stage-name'),
+      progress: $('hud-progress-fill'),
+      coin: $('hud-coin'),
+      squad: $('hud-squad'),
+      squadCount: $('hud-squad-count'),
+      tip: $('hud-tip'),
+      bossBar: $('boss-bar'),
+      buff: $('hud-buff'),
+      buffMult: $('hud-buff-mult'),
+      buffTime: $('hud-buff-time'),
+      bossFill: $('boss-fill'),
+      home: $('screen-home'),
+      homeCoin: $('home-coin'),
+      homeBest: $('home-best'),
+      homeStart: $('home-start'),
+      playStage: $('btn-play-stage'),
+      upgrade: $('screen-upgrade'),
+      upgradeCoin: $('upgrade-coin'),
+      upgradeList: $('upgrade-list'),
+      stages: $('screen-stages'),
+      stageList: $('stage-list'),
+      result: $('screen-result'),
+      resultTitle: $('result-title'),
+      resultStars: $('result-stars'),
+      resultLines: $('result-lines'),
+      resultMain: $('btn-result-main'),
+      resultRetry: $('btn-result-retry'),
+      resultHome: $('btn-result-home'),
+    };
+
+    const screens = [el.home, el.upgrade, el.stages, el.result];
+    let lastCount = -1;
+    let lastBossRatio = -1;
+
+    function hideAll() {
+      for (const s of screens) s.classList.add('hidden');
+    }
+
+    function show(screen) {
+      hideAll();
+      el.hud.classList.add('hidden');
+      screen.classList.remove('hidden');
+    }
+
+    function showHud() {
+      hideAll();
+      el.hud.classList.remove('hidden');
+    }
+
+    function showHome(save) {
+      const mods = LW.upgrades.resolve(save.levels);
+      el.homeCoin.textContent = save.coins;
+      el.homeBest.textContent = save.bestStage;
+      el.homeStart.textContent = mods.startCount;
+      el.playStage.textContent = LW.config.stageName(save.bestStage).split(' ')[0];
+      show(el.home);
+    }
+
+    function showUpgrade(save) {
+      el.upgradeCoin.textContent = save.coins;
+      el.upgradeList.innerHTML = '';
+      for (const def of LW.upgrades.defs) {
+        const level = save.levels[def.id] | 0;
+        const cost = LW.upgrades.costOf(def.id, level);
+        const maxed = level >= def.maxLevel;
+
+        const row = document.createElement('div');
+        row.className = 'upgrade-row';
+
+        const icon = document.createElement('div');
+        icon.className = 'upgrade-icon';
+        icon.textContent = def.icon;
+
+        const body = document.createElement('div');
+        body.className = 'upgrade-body';
+        const name = document.createElement('div');
+        name.className = 'upgrade-name';
+        name.textContent = def.name;
+        const desc = document.createElement('div');
+        desc.className = 'upgrade-desc';
+        desc.textContent = def.desc;
+        const lv = document.createElement('div');
+        lv.className = 'upgrade-level';
+        lv.textContent = 'Lv.' + level + ' · 현재 ' + def.display(level);
+        body.append(name, desc, lv);
+
+        const buy = document.createElement('button');
+        buy.className = 'upgrade-buy';
+        if (maxed) {
+          buy.textContent = 'MAX';
+          buy.disabled = true;
+        } else {
+          buy.innerHTML = '🔩 ' + cost;
+          buy.disabled = save.coins < cost;
+          buy.addEventListener('click', () => handlers.onBuy(def.id));
+        }
+
+        row.append(icon, body, buy);
+        el.upgradeList.appendChild(row);
+      }
+      show(el.upgrade);
+    }
+
+    function starText(n) {
+      return '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n);
+    }
+
+    function showStages(save) {
+      el.stageList.innerHTML = '';
+      const top = Math.max(save.bestStage, LW.config.stageCount);
+      for (let stage = 1; stage <= top; stage++) {
+        const card = document.createElement('button');
+        const locked = stage > save.bestStage;
+        const stars = save.stars[stage] || 0;
+        card.className = 'stage-card' + (locked ? ' locked' : '') + (stars > 0 ? ' cleared' : '');
+        card.disabled = locked;
+        const name = LW.config.stageName(stage).split(' · ');
+        card.innerHTML =
+          '<div class="sc-no">' + (locked ? '🔒' : stage) + '</div>' +
+          '<div class="sc-name">' + (name[1] || '전선') + '</div>' +
+          '<div class="sc-stars">' + (locked ? '' : starText(stars)) + '</div>';
+        if (!locked) card.addEventListener('click', () => handlers.onPlay(stage));
+        el.stageList.appendChild(card);
+      }
+      show(el.stages);
+    }
+
+    function showResult(result, save) {
+      el.resultTitle.textContent = result.win ? '구역 돌파!' : '병력 전멸…';
+      el.resultStars.textContent = result.win ? starText(result.stars) : '☆☆☆';
+      el.resultLines.innerHTML = '';
+      const lines = [
+        ['생존 병력', '👥 ' + result.survived],
+        ['최대 병력', '📈 ' + (result.peak || result.startCount)],
+        ['처치한 로봇', '🤖 ' + result.kills],
+        ['획득 부품', '🔩 ' + result.coins],
+      ];
+      for (const [k, v] of lines) {
+        const row = document.createElement('div');
+        row.className = 'rl';
+        row.innerHTML = '<span>' + k + '</span><b>' + v + '</b>';
+        el.resultLines.appendChild(row);
+      }
+      const nextStage = result.stage + 1;
+      el.resultMain.textContent = result.win
+        ? '다음 구역 (' + nextStage + ')'
+        : '🔧 병력 강화';
+      el.resultMain.onclick = result.win
+        ? () => handlers.onPlay(nextStage)
+        : () => handlers.onUpgrade();
+      el.resultRetry.onclick = () => handlers.onPlay(result.stage);
+      el.resultHome.onclick = () => handlers.onHome();
+      show(el.result);
+    }
+
+    function setTip(text) {
+      el.tip.textContent = text;
+    }
+
+    /** 매 프레임 호출 — DOM 은 값이 바뀔 때만 만진다. */
+    function updateHud(run) {
+      const count = run.squad.count;
+      if (count !== lastCount) {
+        el.squadCount.textContent = LW.util.formatCount(count);
+        el.squad.classList.remove('pump', 'hurt');
+        // 리플로우 강제 → 애니메이션 재시작
+        void el.squad.offsetWidth;
+        if (lastCount >= 0) el.squad.classList.add(count > lastCount ? 'pump' : 'hurt');
+        lastCount = count;
+      }
+      el.progress.style.width = (LW.run.progress(run) * 100).toFixed(1) + '%';
+      el.coin.textContent = run.parts;
+
+      // 총 픽업 버프
+      const squad = run.squad;
+      if (squad.buffTimer > 0) {
+        el.buff.classList.remove('hidden');
+        el.buffMult.textContent = '×' + (squad.mods.fireMult + squad.fireBonus()).toFixed(2);
+        el.buffTime.textContent = squad.buffTimer.toFixed(1);
+      } else {
+        el.buff.classList.add('hidden');
+      }
+
+      const boss = run.boss;
+      if (boss && !boss.dead) {
+        el.bossBar.classList.remove('hidden');
+        const ratio = boss.hp / boss.maxHp;
+        if (Math.abs(ratio - lastBossRatio) > 0.002) {
+          el.bossFill.style.width = (ratio * 100).toFixed(1) + '%';
+          lastBossRatio = ratio;
+        }
+      } else {
+        el.bossBar.classList.add('hidden');
+        lastBossRatio = -1;
+      }
+    }
+
+    function beginRun(run) {
+      lastCount = -1;
+      lastBossRatio = -1;
+      el.stageName.textContent = run.plan.name;
+      el.bossBar.classList.add('hidden');
+      setTip('드래그 · ← → 로 이동 · 좋은 문을 골라라');
+      showHud();
+      updateHud(run);
+    }
+
+    // 정적 버튼 배선
+    $('btn-play').addEventListener('click', () => handlers.onPlayLatest());
+    $('btn-upgrade').addEventListener('click', () => handlers.onUpgrade());
+    $('btn-stages').addEventListener('click', () => handlers.onStages());
+    for (const back of document.querySelectorAll('[data-back]')) {
+      back.addEventListener('click', () => handlers.onHome());
+    }
+
+    return { showHome, showUpgrade, showStages, showResult, showHud, updateHud, beginRun, setTip };
+  }
+
+  LW.ui = { create };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* 지휘자: 캔버스 부팅 · 입력 · 루프 · 화면 전환 배선. 게임 규칙은 game 모듈에 있다. */
+(function (global) {
+  'use strict';
+  const LW = global.LW;
+
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const camera = LW.render.makeCamera(canvas);
+  const repo = LW.save.makeRepository(safeStorage());
+  let save = repo.load();
+
+  let run = null;
+  let mode = 'home'; // home | play | over
+  let overTimer = 0;
+  const input = { targetX: 0 };
+  let dragging = false;
+  let dragOriginX = 0;
+  let dragOriginTarget = 0;
+  const keys = { left: false, right: false };
+
+  /** localStorage 가 막혀 있으면(공유 링크·시크릿 모드) 메모리에만 저장한다. */
+  function safeStorage() {
+    try {
+      const s = global.localStorage;
+      s.setItem('__probe__', '1');
+      s.removeItem('__probe__');
+      return s;
+    } catch (err) {
+      return memoryStorage();
+    }
+  }
+
+  function memoryStorage() {
+    const map = {};
+    return {
+      getItem: (k) => (k in map ? map[k] : null),
+      setItem: (k, v) => {
+        map[k] = String(v);
+      },
+      removeItem: (k) => {
+        delete map[k];
+      },
+    };
+  }
+
+  function resize() {
+    const dpr = Math.min(global.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(canvas.clientWidth * dpr);
+    canvas.height = Math.floor(canvas.clientHeight * dpr);
+  }
+
+  const ui = LW.ui.create({
+    onPlayLatest: () => startRun(save.bestStage),
+    onPlay: (stage) => startRun(stage),
+    onUpgrade: () => ui.showUpgrade(save),
+    onStages: () => ui.showStages(save),
+    onHome: () => goHome(),
+    onBuy: (id) => buy(id),
+  });
+
+  function goHome() {
+    mode = 'home';
+    run = null;
+    ui.showHome(save);
+  }
+
+  function buy(id) {
+    const level = save.levels[id] | 0;
+    const cost = LW.upgrades.costOf(id, level);
+    if (!Number.isFinite(cost) || save.coins < cost) return;
+    save.coins -= cost;
+    save.levels[id] = level + 1;
+    repo.save(save);
+    ui.showUpgrade(save);
+  }
+
+  function startRun(stage) {
+    LW.audio.unlock();
+    const mods = LW.upgrades.resolve(save.levels);
+    run = LW.run.create(Math.max(1, stage), mods);
+    LW.fx.reset();
+    input.targetX = 0;
+    mode = 'play';
+    ui.beginRun(run);
+  }
+
+  function finishRun() {
+    const result = LW.run.result(run);
+    save = LW.save.applyResult(save, result);
+    repo.save(save);
+    ui.showResult(result, save);
+    mode = 'result';
+  }
+
+  /* ---------------- 입력 ---------------- */
+
+  function pointerToWorldX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const rel = (clientX - rect.left) / rect.width; // 0..1
+    const half = LW.config.world.roadHalfWidth;
+    return (rel - 0.5) * 2 * half * 1.05;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (mode !== 'play') return;
+    dragging = true;
+    dragOriginX = e.clientX;
+    dragOriginTarget = run ? run.squad.x : 0;
+    canvas.setPointerCapture(e.pointerId);
+    LW.audio.unlock();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging || mode !== 'play') return;
+    // 상대 드래그: 손가락이 병력을 미는 느낌
+    const rect = canvas.getBoundingClientRect();
+    const dx = ((e.clientX - dragOriginX) / rect.width) * LW.config.world.roadHalfWidth * 2.6;
+    input.targetX = dragOriginTarget + dx;
+  });
+
+  function endDrag() {
+    dragging = false;
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', endDrag);
+
+  // 클릭(탭) 만으로도 그 지점으로 이동하고 싶은 경우
+  canvas.addEventListener('click', (e) => {
+    if (mode !== 'play' || dragging) return;
+    input.targetX = pointerToWorldX(e.clientX);
+  });
+
+  global.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+    if (e.key === 'm' || e.key === 'M') LW.audio.setEnabled(!LW.audio.isEnabled());
+    if (e.key === 'Escape' && mode === 'play') goHome();
+    if (e.key === ' ' && mode === 'home') {
+      e.preventDefault();
+      startRun(save.bestStage);
+    }
+  });
+
+  global.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  });
+
+  global.addEventListener('resize', resize);
+
+  /* ---------------- 루프 ---------------- */
+
+  let last = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016);
+    last = now;
+
+    if (canvas.width !== Math.floor(canvas.clientWidth * Math.min(global.devicePixelRatio || 1, 2))) resize();
+
+    if (run) {
+      if (mode === 'play') {
+        if (keys.left) input.targetX -= dt * 9;
+        if (keys.right) input.targetX += dt * 9;
+        const events = LW.run.update(run, dt, input);
+        if (events.length) {
+          LW.audio.play(events, now);
+          LW.fx.handle(events, run);
+        }
+        LW.fx.update(dt);
+        ui.updateHud(run);
+        if (run.phase === 'won' || run.phase === 'lost') {
+          mode = 'over';
+          overTimer = run.phase === 'won' ? 0.9 : 1.2;
+        }
+      } else if (mode === 'over') {
+        LW.fx.handle(LW.run.update(run, dt, input), run); // 파티클·연출 잔상만 진행
+        LW.fx.update(dt);
+        overTimer -= dt;
+        if (overTimer <= 0) finishRun();
+      }
+      LW.render.draw(ctx, camera, run);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    global.requestAnimationFrame(frame);
+  }
+
+  /* 자동 테스트(브라우저 smoke)·디버그용 최소 손잡이. 게임 규칙은 여기서 만지지 않는다. */
+  LW.debug = {
+    state: () => ({ mode: mode, run: run, save: save }),
+    start: (stage) => startRun(stage),
+    skipToBoss: () => {
+      if (run) run.dist = run.plan.bossY - LW.config.boss.standoff - 0.1;
+    },
+    finishBoss: () => {
+      if (run && run.boss) run.boss.hp = 0.01;
+    },
+    boost: (n) => {
+      if (run) run.squad.count = n;
+    },
+    resetSave: () => {
+      repo.clear();
+      save = repo.load();
+      goHome();
+    },
+  };
+
+  resize();
+  goHome();
+  global.requestAnimationFrame(frame);
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+</body>
+</html>
