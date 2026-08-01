@@ -13,8 +13,8 @@ const dumbInput = pilot.dumb;
 const DT = 1 / 60;
 const MAX_SECONDS = 240;
 
-function play(stage, levels, policy) {
-  const run = LW.run.create(stage, LW.upgrades.resolve(levels));
+function play(chapter, levels, policy, opts) {
+  const run = LW.run.create(chapter, LW.upgrades.resolve(levels), opts);
   const input = { targetX: 0 };
   let peak = run.squad.count;
   for (let t = 0; t < MAX_SECONDS / DT; t++) {
@@ -35,13 +35,14 @@ function pad(s, n) {
 const levelArg = Number(process.argv[2] || 0);
 const levels = { start: levelArg, damage: levelArg, fire: levelArg, speed: levelArg, loot: levelArg };
 console.log('강화 레벨 ' + levelArg + ' 기준 (시작 병력 ' + LW.upgrades.resolve(levels).startCount + '명)\n');
-console.log(pad('구역', 6) + pad('잘 고르면', 34) + '가운데만 달리면');
+console.log(pad('챕터', 7) + pad('잘 고르면', 34) + '가운데만 달리면');
 
 let smartWins = 0;
 let dumbWins = 0;
-for (let stage = 1; stage <= LW.config.stageCount; stage++) {
-  const smart = play(stage, levels, smartInput);
-  const dumb = play(stage, levels, dumbInput);
+const total = LW.config.chapterCount;
+for (let ch = 1; ch <= total; ch++) {
+  const smart = play(ch, levels, smartInput);
+  const dumb = play(ch, levels, dumbInput);
   if (smart.result.win) smartWins++;
   if (dumb.result.win) dumbWins++;
   const smartText =
@@ -49,14 +50,24 @@ for (let stage = 1; stage <= LW.config.stageCount; stage++) {
     ' 최대 ' + pad(smart.peak, 4) + ' 생존 ' + pad(smart.result.survived, 4) +
     ' 🔩' + pad(smart.result.coins, 5);
   const dumbText = (dumb.result.win ? '승리 ★' + dumb.result.stars : '패배') + ' (최대 ' + dumb.peak + ')';
-  console.log(pad(stage + '구역', 6) + pad(smartText, 34) + dumbText);
+  const tag = LW.config.zoneOf(ch) + '-' + LW.config.partOf(ch) + (LW.config.hasBossAt(ch) ? '👹' : '  ');
+  console.log(pad(tag, 7) + pad(smartText, 34) + dumbText);
 }
 
-console.log('\n잘 고른 플레이: ' + smartWins + '/' + LW.config.stageCount + ' 승');
-console.log('막 달린 플레이: ' + dumbWins + '/' + LW.config.stageCount + ' 승');
+// 최종 결전
+const fin = play(total, levels, smartInput, { final: true });
+console.log(
+  pad('최종', 7) +
+    pad((fin.result.win ? '승리 ★' + fin.result.stars : '패배  ') + ' 최대 ' + fin.peak, 34) +
+    (fin.result.win ? '' : '(강화가 더 필요하다)')
+);
+
+console.log('\n잘 고른 플레이: ' + smartWins + '/' + total + ' 챕터 승');
+console.log('막 달린 플레이: ' + dumbWins + '/' + total + ' 챕터 승');
+console.log('최종 결전: ' + (fin.result.win ? '돌파' : '실패'));
 
 // 게이트 요령을 익히면 초반은 이겨야 하고, 아무렇게나 하면 전부 이기면 안 된다.
-const ok = smartWins >= 3 && dumbWins < LW.config.stageCount;
+const ok = smartWins >= 6 && dumbWins < total;
 if (!ok) {
   console.error('\n밸런스 경고: 난이도 곡선을 조정해야 한다.');
   process.exit(1);

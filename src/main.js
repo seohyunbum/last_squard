@@ -4,8 +4,12 @@
   const LW = global.LW;
 
   const canvas = document.getElementById('stage');
-  const ctx = canvas.getContext('2d');
-  const camera = LW.render.makeCamera(canvas);
+  // 진짜 3D(WebGL) 를 먼저 시도하고, 안 되면 2D 렌더러로 돌아간다.
+  // 캔버스는 컨텍스트를 하나만 가질 수 있어서 순서가 중요하다 — 3D 를 먼저 물어본다.
+  const use3d = !!(LW.render3d && LW.render3d.init(canvas));
+  const gfx = use3d ? LW.render3d : LW.render;
+  const ctx = use3d ? null : canvas.getContext('2d');
+  const camera = gfx.makeCamera(canvas);
   const repo = LW.save.makeRepository(safeStorage());
   let save = repo.load();
 
@@ -45,15 +49,19 @@
 
   function resize() {
     const dpr = Math.min(global.devicePixelRatio || 1, 2);
+    if (use3d) return; // 3D 렌더러가 자기 크기를 직접 맞춘다
     canvas.width = Math.floor(canvas.clientWidth * dpr);
     canvas.height = Math.floor(canvas.clientHeight * dpr);
   }
 
   const ui = LW.ui.create({
-    onPlayLatest: () => startRun(save.bestStage),
-    onPlay: (stage) => startRun(stage),
+    onPlayLatest: () => startRun(ui.nextChapter(save)),
+    onPlay: (chapter) => startRun(chapter),
     onUpgrade: () => ui.showUpgrade(save),
     onStages: () => ui.showStages(save),
+    onSurvival: () => startSurvival(),
+    onFinal: () => startFinal(),
+    onEnding: () => showEnding(),
     onHome: () => goHome(),
     onBuy: (id) => buy(id),
   });
@@ -74,10 +82,40 @@
     ui.showUpgrade(save);
   }
 
-  function startRun(stage) {
+  function startRun(chapter) {
     LW.audio.unlock();
     const mods = LW.upgrades.resolve(save.levels);
-    run = LW.run.create(Math.max(1, stage), mods);
+    const ch = LW.util.clamp(Math.round(chapter) || 1, 1, LW.config.chapterCount);
+    run = LW.run.create(ch, mods);
+    LW.fx.reset();
+    input.targetX = 0;
+    mode = 'play';
+    ui.beginRun(run);
+  }
+
+  /** 최종 결전 — 33챕터를 모두 깨면 열린다. */
+  function startFinal() {
+    LW.audio.unlock();
+    const mods = LW.upgrades.resolve(save.levels);
+    run = LW.run.create(LW.config.chapterCount, mods, { final: true });
+    LW.fx.reset();
+    input.targetX = 0;
+    mode = 'play';
+    ui.beginRun(run);
+  }
+
+  function showEnding() {
+    save.endingSeen = true;
+    repo.save(save);
+    mode = 'ending';
+    run = null;
+    ui.showEnding(save);
+  }
+
+  /** 버티기 모드 — 제자리에서 좌우로 밀려오는 게이트·드럼통을 버틴다. */
+  function startSurvival() {
+    LW.audio.unlock();
+    run = LW.run.create(1, LW.upgrades.resolve(save.levels), { endless: true });
     LW.fx.reset();
     input.targetX = 0;
     mode = 'play';
@@ -138,7 +176,7 @@
     if (e.key === 'Escape' && mode === 'play') goHome();
     if (e.key === ' ' && mode === 'home') {
       e.preventDefault();
-      startRun(save.bestStage);
+      startRun(ui.nextChapter(save));
     }
   });
 
@@ -156,7 +194,7 @@
     const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016);
     last = now;
 
-    if (canvas.width !== Math.floor(canvas.clientWidth * Math.min(global.devicePixelRatio || 1, 2))) resize();
+    if (!use3d && canvas.width !== Math.floor(canvas.clientWidth * Math.min(global.devicePixelRatio || 1, 2))) resize();
 
     if (run) {
       if (mode === 'play') {
@@ -179,8 +217,8 @@
         overTimer -= dt;
         if (overTimer <= 0) finishRun();
       }
-      LW.render.draw(ctx, camera, run);
-    } else {
+      gfx.draw(ctx, camera, run);
+    } else if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
@@ -189,10 +227,24 @@
 
   /* 자동 테스트(브라우저 smoke)·디버그용 최소 손잡이. 게임 규칙은 여기서 만지지 않는다. */
   LW.debug = {
-    state: () => ({ mode: mode, run: run, save: save }),
-    start: (stage) => startRun(stage),
+    state: () => ({ mode: mode, run: run, save: save, gfx: use3d ? '3d' : '2d' }),
+    start: (chapter) => startRun(chapter),
+    startSurvival: () => startSurvival(),
+    startFinal: () => startFinal(),
+    unlockAll: () => {
+      for (let ch = 1; ch <= LW.config.chapterCount; ch++) save.stars[ch] = 3;
+      save.bestChapter = LW.config.chapterCount;
+      repo.save(save);
+      goHome();
+    },
     skipToBoss: () => {
-      if (run) run.dist = run.plan.bossY - LW.config.boss.standoff - 0.1;
+      if (!run || !run.plan.hasBoss) return;
+      // 남은 코스 이벤트를 건너뛴다 — 거리만 옮기면 코스의 웨이브가 한꺼번에 쏟아져
+      // 보스 앞에서 부대가 몰살당한다 (보스전만 보려는 손잡이의 의도가 아니다).
+      run.eventIndex = run.plan.events.length;
+      run.dist = run.plan.bossY - LW.config.boss.standoff - 0.1;
+      for (const e of run.enemies) e.active = false;
+      for (const b of run.bolts) b.active = false;
     },
     finishBoss: () => {
       if (run && run.boss) run.boss.hp = 0.01;

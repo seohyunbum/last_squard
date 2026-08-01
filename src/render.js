@@ -31,6 +31,16 @@
     SKYLINE.push({ x: bgRng.range(-1, 1), w: bgRng.range(0.02, 0.09), h: bgRng.range(0.1, 0.62) });
   }
 
+  /* 미니건 병사 슬롯 — 핫패스에서 새 객체를 만들지 않도록 재사용한다. */
+  const GUNNER_SLOTS = [];
+  function gunnerSlot(i, worldX) {
+    let slot = GUNNER_SLOTS[i];
+    if (!slot) slot = GUNNER_SLOTS[i] = { x: 0, i: 0 };
+    slot.x = worldX; // 월드 절대 좌표 (도로 안으로 이미 잘려 있다)
+    slot.i = i;
+    return slot;
+  }
+
   /* ---------- 카메라 ---------- */
 
   function makeCamera(canvas) {
@@ -341,6 +351,18 @@
       if (d > near) add(cam, 'unit', f, d);
     }
 
+    // 미니건 병사 — 진형 바깥 좌우 (선두 줄과 같은 깊이)
+    for (let i = 0; i < squad.gunners; i++) {
+      const d = depthOf(cam, run.dist);
+      if (d > near) add(cam, 'gunner', gunnerSlot(i, squad.gunnerX(i)), d);
+    }
+
+    for (const p of run.gunnerPickups) {
+      if (p.taken) continue;
+      const d = depthOf(cam, p.y);
+      if (d > near && d < 90) add(cam, 'gunnerPickup', p, d);
+    }
+
     // 활성 슬롯만 정렬 대상이 되도록 나머지는 뒤로 밀어 둔다
     for (let i = cam.count; i < cam.list.length; i++) cam.list[i].d = -Infinity;
     cam.list.sort(byDepth);
@@ -518,10 +540,14 @@
     const yt = py(cam, s, cfg.heights.gate);
     const H = yb - yt;
 
-    for (let side = 0; side < 2; side++) {
+    // solo 게이트(버티기 모드)는 문이 하나 — 도로 왼쪽에 폭 w 로 떠 있다.
+    const sides = gate.solo ? 1 : 2;
+    for (let side = 0; side < sides; side++) {
       const door = gate.doors[side];
-      const x0 = px(cam, side === 0 ? -half : 0, s);
-      const x1 = px(cam, side === 0 ? 0 : half, s);
+      const wx0 = gate.solo ? gate.x - gate.w / 2 : side === 0 ? -half : 0;
+      const wx1 = gate.solo ? gate.x + gate.w / 2 : side === 0 ? 0 : half;
+      const x0 = px(cam, wx0, s);
+      const x1 = px(cam, wx1, s);
       const w = x1 - x0;
       const buff = LW.gates.looksBuff(door); // 페이크는 초록으로 보인다
       const used = gate.used;
@@ -619,17 +645,141 @@
     ctx.fillStyle = 'rgba(20,24,32,0.45)';
     ctx.fillRect(x - w / 2, yt + H * 0.3, w, Math.max(1, H * 0.08));
     ctx.fillRect(x - w / 2, yt + H * 0.62, w, Math.max(1, H * 0.08));
-    // 체력
-    if (barrel.hp < barrel.maxHp) {
-      const bh = Math.max(2, s * 0.04);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(x - w / 2, yt - bh * 2.2, w, bh);
-      ctx.fillStyle = '#ffd05e';
-      ctx.fillRect(x - w / 2, yt - bh * 2.2, (w * Math.max(0, barrel.hp)) / barrel.maxHp, bh);
-    }
+    // 남은 타격 횟수 — 이만큼 맞히면 터진다. 맞을 때마다 줄어든다.
+    const left = Math.max(0, barrel.hits);
+    const nfs = Math.max(9, w * 0.62);
+    ctx.font = '900 ' + nfs + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const ny = yt + H * 0.47;
+    ctx.fillStyle = 'rgba(20,12,8,0.65)';
+    ctx.fillText(String(left), x, ny + Math.max(1, nfs * 0.08));
+    ctx.fillStyle = barrel.flash > 0 ? '#fff2c0' : '#ffffff';
+    ctx.fillText(String(left), x, ny);
 
     // 위에 얹힌 총 (쏴서 터뜨리면 떨어진다)
     drawGunIcon(ctx, cam, barrel.x, cfg.barrel.gunZ + Math.sin(barrel.bob) * 0.06, s, 1);
+  }
+
+  /** 미니건 병사 — 진형 바깥에 붙어 함께 달린다. 일반 병사보다 크고 총이 굵다. */
+  function drawGunner(ctx, cam, run, g, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const squad = run.squad;
+    const phase = run.time * 10 + g.i * 1.3;
+    const stride = Math.sin(phase);
+    const x = px(cam, g.x, s);
+    const yb = py(cam, s, 0) - Math.abs(stride) * s * 0.03;
+    const yTop = py(cam, s, cfg.heights.gunner) - Math.abs(stride) * s * 0.03;
+    const body = 0.44 * s; // 일반 병사(0.34)보다 크다
+    const H = yb - yTop;
+
+    groundShadow(ctx, x, py(cam, s, 0), s, 0.28);
+
+    // 다리
+    ctx.fillStyle = '#1f3550';
+    const legH = H * 0.32;
+    const legW = body * 0.3;
+    ctx.fillRect(x - body * 0.36 + stride * legW * 0.4, yb - legH, legW, legH);
+    ctx.fillRect(x + body * 0.06 - stride * legW * 0.4, yb - legH, legW, legH);
+    // 몸통 (아군 파랑이지만 더 진하다 — 중장 느낌)
+    ctx.fillStyle = '#2f62b8';
+    roundRect(ctx, x - body / 2, yTop + H * 0.26, body, H * 0.46, body * 0.26);
+    ctx.fill();
+    // 탄띠
+    ctx.fillStyle = '#ffcf4a';
+    ctx.fillRect(x - body * 0.5, yTop + H * 0.42, body, Math.max(1, H * 0.06));
+
+    // 미니건: 굵은 통 + 회전하는 총구
+    const gx = x + body * 0.2;
+    const gy = yTop + H * 0.3;
+    const gl = H * 0.4;
+    ctx.fillStyle = '#151b26';
+    roundRect(ctx, gx, gy, body * 0.34, gl, body * 0.1);
+    ctx.fill();
+    // 총열 다발 (회전 표현 — 밝은 줄이 돈다)
+    const spin = (run.time * 14 + g.i) % 1;
+    ctx.fillStyle = '#5a6b84';
+    for (let k = 0; k < 3; k++) {
+      const t = (spin + k / 3) % 1;
+      const bw = body * 0.07;
+      ctx.fillRect(gx + body * 0.05 + t * body * 0.22, gy + gl * 0.1, bw, gl * 0.8);
+    }
+    // 헬멧 (미니건 병사는 은색 — 한눈에 구분된다)
+    ctx.fillStyle = '#dfe7f2';
+    ctx.beginPath();
+    ctx.arc(x, yTop + H * 0.14, body * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8fa3bd';
+    ctx.fillRect(x - body * 0.34, yTop + H * 0.13, body * 0.68, Math.max(1, H * 0.04));
+
+    // 총구 화염 — 미니건은 거의 끊기지 않는다
+    if (squad.gunnerTimer > LW.config.gunner.fireInterval - 0.07) {
+      const fx = gx + body * 0.17;
+      const fy = gy - H * 0.04;
+      const r = body * (0.3 + Math.random() * 0.16);
+      const grad = ctx.createRadialGradient(fx, fy, 0, fx, fy, r);
+      grad.addColorStop(0, 'rgba(255,255,220,0.95)');
+      grad.addColorStop(0.5, 'rgba(255,190,90,0.7)');
+      grad.addColorStop(1, 'rgba(255,140,60,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(fx, fy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** 길에서 기다리는 미니건 병사 — 지나가면 합류한다. */
+  function drawGunnerPickup(ctx, cam, run, p, d) {
+    const cfg = LW.config;
+    const s = scaleAt(cam, d);
+    const x = px(cam, p.x, s);
+    const yb = py(cam, s, cfg.gunner.standZ);
+    const yTop = py(cam, s, cfg.gunner.standZ + cfg.heights.gunner);
+    const H = yb - yTop;
+    const body = 0.44 * s;
+
+    // 빛기둥 (아군 표시 — 청록색)
+    const beamTop = py(cam, s, 3.4);
+    const beam = ctx.createLinearGradient(0, beamTop, 0, yb);
+    beam.addColorStop(0, 'rgba(120,240,255,0)');
+    beam.addColorStop(1, 'rgba(120,240,255,0.3)');
+    ctx.fillStyle = beam;
+    ctx.fillRect(x - body * 0.7, beamTop, body * 1.4, yb - beamTop);
+
+    groundShadow(ctx, x, yb, s, 0.3);
+
+    // 손을 흔든다 (합류를 기다리는 아군)
+    const wave = Math.sin(p.wave) * 0.5;
+    ctx.fillStyle = '#2f62b8';
+    roundRect(ctx, x - body / 2, yTop + H * 0.26, body, H * 0.5, body * 0.26);
+    ctx.fill();
+    ctx.fillStyle = '#3f7ddc';
+    ctx.save();
+    ctx.translate(x + body * 0.42, yTop + H * 0.32);
+    ctx.rotate(-0.5 + wave);
+    ctx.fillRect(0, -body * 0.1, body * 0.42, body * 0.2);
+    ctx.restore();
+    // 미니건을 세워 들고 있다
+    ctx.fillStyle = '#151b26';
+    roundRect(ctx, x - body * 0.62, yTop + H * 0.2, body * 0.3, H * 0.55, body * 0.08);
+    ctx.fill();
+    // 헬멧
+    ctx.fillStyle = '#dfe7f2';
+    ctx.beginPath();
+    ctx.arc(x, yTop + H * 0.14, body * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 머리 위 표시
+    const fs = Math.max(9, body * 0.52);
+    ctx.font = '900 ' + fs + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const ty = yTop - fs * 0.7 + Math.sin(p.bob) * s * 0.06;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText('미니건', x, ty + Math.max(1, fs * 0.08));
+    ctx.fillStyle = '#c9f6ff';
+    ctx.fillText('미니건', x, ty);
   }
 
   /** 총 픽업 아이콘 — 노면에 떨어져 반짝이는 상태 */
@@ -801,6 +951,12 @@
           break;
         case 'unit':
           drawUnit(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'gunner':
+          drawGunner(ctx, cam, run, item.ref, item.d);
+          break;
+        case 'gunnerPickup':
+          drawGunnerPickup(ctx, cam, run, item.ref, item.d);
           break;
         case 'bullet':
           drawBullet(ctx, cam, run, item.ref, item.d);

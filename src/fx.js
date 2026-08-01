@@ -48,6 +48,16 @@
         push(run.squad.x, run.dist + 0.8, '-' + ev.amount, '', '#ff8b96', 0.95, 0.8);
       } else if (ev.type === 'weapon') {
         push(run.squad.x, run.dist + 1.4, '연사 UP!', '×' + ev.stacks, '#ffe27a', 1.2, 1.1);
+      } else if (ev.type === 'gunner') {
+        push(
+          run.squad.x, run.dist + 1.3,
+          ev.total > 0 ? '미니건 합류!' : '부품 +6',
+          ev.total > 0 ? '🔫 ×' + ev.total : '',
+          '#9ff0ff', 1.25, 1.2
+        );
+      } else if (ev.type === 'bossPattern') {
+        // 다음에 뭐가 오는지 미리 알려 준다 — 패턴은 외워서 대응하는 재미다
+        push(0, run.dist + 7, ev.label, '', '#ffd0d6', 1.3, 1.5);
       } else if (ev.type === 'bossStart') {
         push(0, run.dist + 9, '대장 로봇!', '', '#ffd0d6', 1.5, 1.6);
       } else if (ev.type === 'win') {

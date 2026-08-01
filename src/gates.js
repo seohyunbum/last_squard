@@ -75,24 +75,58 @@
    * 기본은 이득 하나 + 손해 하나, 때때로 둘 다 초록(더 큰 쪽 고르기)이다.
    * expected 가 커지면 더하기 값도 같이 커져서 후반에도 의미가 있다.
    */
+  /** 이득 문 후보들 — 예상 병력에 맞춰 값이 커진다. */
+  function buffPool(rng, expected, stage) {
+    const scale = Math.max(4, Math.round(expected * 0.45));
+    return [
+      { op: 'add', value: rng.int(Math.max(3, Math.round(scale * 0.5)), Math.max(6, scale)) },
+      { op: 'add', value: rng.int(Math.max(5, scale), Math.max(9, Math.round(scale * 1.6))) },
+      { op: 'mul', value: 2 },
+      { op: 'mul', value: rng.chance(0.25 + stage * 0.02) ? 3 : 2 },
+    ];
+  }
+
+  /** 손해 문 후보들 */
+  function nerfPool(rng, expected) {
+    const scale = Math.max(4, Math.round(expected * 0.45));
+    return [
+      { op: 'sub', value: rng.int(Math.max(3, Math.round(scale * 0.4)), Math.max(7, scale)) },
+      { op: 'div', value: 2 },
+      { op: 'div', value: rng.chance(0.3) ? 3 : 2 },
+    ];
+  }
+
+  /**
+   * 버티기 모드의 문 하나. 짝이 없으니 "들어갈까 피할까" 를 고른다 —
+   * 그래서 손해 문도 마음껏 섞을 수 있다(피하면 되니까). 색이 거짓인 페이크는 후반부터.
+   *
+   * 값은 작게 고정한다. 버티기는 병력 상한이 있어 커질 여지가 없고,
+   * 작은 수라야 아이가 다가오는 문을 읽고 판단할 수 있다.
+   */
+  function makeSolo(rng, tier) {
+    if (rng.chance(0.5)) {
+      if (rng.chance(0.14)) return { op: 'mul', value: 2 };
+      return { op: 'add', value: rng.int(3, 9) };
+    }
+    const nerf = rng.chance(0.5)
+      ? { op: 'sub', value: rng.int(4, 10) }
+      : { op: 'div', value: 2 };
+    if (tier >= 3 && rng.chance(0.22)) {
+      return rng.chance(0.35)
+        ? { op: 'mul', value: 0, fake: true } // 초록으로 보이는 ×0 — 들어가면 전멸
+        : { op: nerf.op, value: nerf.value, fake: true };
+    }
+    return nerf;
+  }
+
   function makePair(rng, expected, stage, opts) {
     if (opts && opts.allowBothGood) {
       const pair = makeBothGood(rng, expected, stage);
       // 두 문의 결과가 같으면 선택이 무의미하다 — 그럴 때만 보통 쌍으로 되돌린다.
       if (apply(expected, pair[0]) !== apply(expected, pair[1])) return pair;
     }
-    const scale = Math.max(4, Math.round(expected * 0.45));
-    const buffs = [
-      { op: 'add', value: rng.int(Math.max(3, Math.round(scale * 0.5)), Math.max(6, scale)) },
-      { op: 'add', value: rng.int(Math.max(5, scale), Math.max(9, Math.round(scale * 1.6))) },
-      { op: 'mul', value: 2 },
-      { op: 'mul', value: rng.chance(0.25 + stage * 0.02) ? 3 : 2 },
-    ];
-    const nerfs = [
-      { op: 'sub', value: rng.int(Math.max(3, Math.round(scale * 0.4)), Math.max(7, scale)) },
-      { op: 'div', value: 2 },
-      { op: 'div', value: rng.chance(0.3) ? 3 : 2 },
-    ];
+    const buffs = buffPool(rng, expected, stage);
+    const nerfs = nerfPool(rng, expected);
     const buff = rng.pick(buffs);
     let nerf = rng.pick(nerfs);
 
@@ -107,5 +141,5 @@
     return rng.chance(0.5) ? [buff, nerf] : [nerf, buff];
   }
 
-  LW.gates = { OPS, apply, label, isBuff, looksBuff, makePair, makeBothGood };
+  LW.gates = { OPS, apply, label, isBuff, looksBuff, makePair, makeBothGood, makeSolo };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

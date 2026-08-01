@@ -9,15 +9,15 @@ function newRun(stage, levels) {
   return LW.run.create(stage, LW.upgrades.resolve(levels || {}));
 }
 
-/** 드럼통을 정면에 세운 전투를 만든다. */
-function runWithBarrel(offsetX) {
+/** 드럼통을 정면에 세운 전투를 만든다. hits 를 크게 주면 다 부수기 전에 도달한다. */
+function runWithBarrel(offsetX, hits) {
   const run = newRun(1, { damage: 8 });
   run.barrels.length = 0;
   run.barrels.push({
     x: run.squad.x + (offsetX || 0),
     y: run.dist + 12,
-    hp: LW.config.barrel.hp,
-    maxHp: LW.config.barrel.hp,
+    hits: hits || LW.config.barrel.hits,
+    maxHits: hits || LW.config.barrel.hits,
     broken: false,
     passed: false,
     flash: 0,
@@ -32,7 +32,7 @@ test('모든 구역에 드럼통이 배치된다', () => {
     assert.ok(barrels.length >= 3, stage + '구역 드럼통이 너무 적다');
     for (const b of barrels) {
       assert.ok(Math.abs(b.x) <= LW.config.world.roadHalfWidth, '드럼통이 도로를 벗어났다');
-      assert.ok(b.hp > 0);
+      assert.ok(b.hits > 0);
     }
   }
 });
@@ -95,17 +95,55 @@ function hurtWhilePassingBarrel(run, targetX) {
   return hurt;
 }
 
+test('드럼통에 적힌 수만큼 맞혀야 터진다 (화력과 무관하게 한 발 = 한 번)', () => {
+  for (const hits of [2, 3, 5]) {
+    for (const damage of [0, 8]) {
+      const run = newRun(1, { damage: damage });
+      run.barrels.length = 0;
+      run.barrels.push({
+        x: run.squad.x, y: run.dist + 12, hits: hits, maxHits: hits,
+        broken: false, passed: false, flash: 0, bob: 0,
+      });
+      const barrel = run.barrels[0];
+      let fired = 0;
+      // 마지막 한 발을 남길 때까지 쏘면 아직 멀쩡해야 한다
+      simulateUntil(LW, run, () => barrel.hits <= 1, 6, (r, input) => {
+        input.targetX = barrel.x;
+      });
+      assert.equal(barrel.broken, false, hits + '번짜리가 ' + (hits - 1) + '번에 터졌다');
+      assert.equal(run.guns.length, 0, '아직 총이 떨어지면 안 된다');
+      simulateUntil(LW, run, () => barrel.broken, 3, (r, input) => {
+        input.targetX = barrel.x;
+      });
+      assert.equal(barrel.broken, true, hits + '번짜리가 다 맞혀도 안 터졌다 (화력 ' + damage + ')');
+      assert.equal(run.guns.length, 1, '터졌는데 총이 안 떨어졌다');
+      void fired;
+    }
+  }
+});
+
+test('구역이 오르면 드럼통에 적힌 수가 커진다 (상한까지)', () => {
+  const atZone = (zone) =>
+    LW.stage.build(LW.config.chapterOf(zone, 1), 10).events.filter((e) => e.type === 'barrel')[0].hits;
+  assert.equal(atZone(1), LW.config.barrel.hits, '1구역은 기본 타격 수여야 한다');
+  assert.ok(atZone(5) > atZone(1), '후반 드럼통이 더 단단해지지 않는다');
+  assert.ok(atZone(11) <= LW.config.barrel.maxHits, '상한을 넘겼다');
+  // 같은 구역 안 3챕터는 같은 타격 수 — 구역이 바뀔 때만 오른다
+  const z3 = [1, 2, 3].map((part) =>
+    LW.stage.build(LW.config.chapterOf(3, part), 10).events.filter((e) => e.type === 'barrel')[0].hits
+  );
+  assert.equal(new Set(z3).size, 1, '같은 구역 안에서 타격 수가 달라진다: ' + z3);
+});
+
 test('드럼통을 안 터뜨리고 박으면 병력을 잃는다', () => {
-  const run = runWithBarrel(0);
-  run.squad.mods = Object.assign({}, run.squad.mods, { damageMult: 0 }); // 못 부수게
+  const run = runWithBarrel(0, 9999); // 도달 전에 다 맞힐 수 없게
   const hurt = hurtWhilePassingBarrel(run, run.barrels[0].x);
   assert.equal(hurt, LW.config.barrel.crushCost, '박았는데 아무 일도 없다');
   assert.equal(run.guns.length, 0, '박아서 부순 드럼통은 총을 주지 않는다');
 });
 
 test('옆으로 비켜 지나가면 드럼통은 그냥 남는다', () => {
-  const run = runWithBarrel(3.2);
-  run.squad.mods = Object.assign({}, run.squad.mods, { damageMult: 0 });
+  const run = runWithBarrel(3.2, 9999);
   const hurt = hurtWhilePassingBarrel(run, -3.5);
   assert.equal(hurt, 0, '피했는데 피해를 입었다');
 });

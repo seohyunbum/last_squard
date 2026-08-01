@@ -56,5 +56,13 @@
     return dx * dx + dy * dy <= r * r;
   }
 
-  LW.util = { clamp, lerp, damp, makeRng, formatCount, hitCircle };
+  /** 초 -> "1분 12초" (아이가 읽기 쉬운 표기) */
+  function formatTime(seconds) {
+    const t = Math.max(0, Math.floor(seconds));
+    const m = Math.floor(t / 60);
+    const s = t % 60;
+    return m > 0 ? m + '분 ' + s + '초' : s + '초';
+  }
+
+  LW.util = { clamp, lerp, damp, makeRng, formatCount, formatTime, hitCircle };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

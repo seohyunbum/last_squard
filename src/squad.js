@@ -52,6 +52,8 @@
       mods: mods,
       buffTimer: 0, // 총 픽업 남은 시간
       buffStacks: 0,
+      gunners: 0, // 합류한 미니건 병사 수
+      gunnerTimer: 0, // 미니건 사격 타이머
       /** 이번 볼리의 총 피해량 (병력 수 x 1명당 화력) */
       volleyDamage() {
         return this.count * cfg.damagePerUnit * this.mods.damageMult;
@@ -68,6 +70,30 @@
       interval() {
         return cfg.fireInterval / (this.mods.fireMult + this.fireBonus());
       },
+      /** 미니건 병사가 합류했다. 상한까지만 늘고, 늘었으면 새 수를 돌려준다. */
+      addGunner() {
+        const max = LW.config.gunner.max;
+        if (this.gunners >= max) return 0;
+        this.gunners += 1;
+        return this.gunners;
+      },
+      /** 미니건 병사가 서는 자리 — 진형 바깥 좌우로 번갈아 붙는다. */
+      gunnerOffset(i) {
+        const g = LW.config.gunner;
+        const side = i % 2 === 0 ? -1 : 1;
+        const rank = Math.floor(i / 2);
+        return side * (this.halfWidth() + g.flankGap * (rank + 1));
+      },
+      /** 미니건 병사의 실제 x — 부대가 도로 끝까지 가도 병사는 도로 안에 남는다. */
+      gunnerX(i) {
+        const half = LW.config.world.roadHalfWidth - 0.3;
+        return LW.util.clamp(this.x + this.gunnerOffset(i), -half, half);
+      },
+      /** 미니건 한 발의 피해 — 병력 수와 무관하고 화력 강화만 곱한다. */
+      gunnerDamage() {
+        return LW.config.gunner.damage * this.mods.damageMult;
+      },
+
       /** 총을 먹었다 — 시간 갱신 + 중첩 (상한까지) */
       pickUpWeapon() {
         const w = LW.config.weapon;

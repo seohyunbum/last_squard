@@ -26,6 +26,7 @@
       <div class="hud-left">
         <div id="hud-squad" class="squad-chip">👥 <span id="hud-squad-count">10</span></div>
         <div id="hud-buff" class="buff-chip hidden">🔥 연사 <b id="hud-buff-mult">×1.4</b> <span id="hud-buff-time">7.0</span>s</div>
+        <div id="hud-gunner" class="gunner-chip hidden">🔫 미니건 <b id="hud-gunner-count">1</b></div>
       </div>
       <div id="hud-tip" class="hud-tip">드래그 · ← → 로 이동</div>
     </div>
@@ -37,13 +38,15 @@
     <p class="subtitle">게이트를 골라 병력을 불리고, 고철 로봇 군단을 막아내자</p>
     <div class="home-stats">
       <div class="stat"><span class="stat-label">보유 부품</span><span class="stat-value">🔩 <b id="home-coin">0</b></span></div>
-      <div class="stat"><span class="stat-label">최고 구역</span><span class="stat-value">🏁 <b id="home-best">1</b></span></div>
+      <div class="stat"><span class="stat-label">깬 챕터</span><span class="stat-value">🏁 <b id="home-best">0/33</b></span></div>
       <div class="stat"><span class="stat-label">시작 병력</span><span class="stat-value">👥 <b id="home-start">10</b></span></div>
+      <div class="stat"><span class="stat-label">버티기 기록</span><span class="stat-value">⏱️ <b id="home-best-time">0초</b></span></div>
     </div>
     <button id="btn-play" class="btn btn-primary btn-big">출동! <span id="btn-play-stage">1구역</span></button>
+    <button id="btn-survival" class="btn btn-survival btn-big">🛡️ 버티기</button>
     <div class="home-row">
       <button id="btn-upgrade" class="btn">🔧 병력 강화</button>
-      <button id="btn-stages" class="btn">🗺️ 구역 선택</button>
+      <button id="btn-stages" class="btn">🗺️ 챕터 선택</button>
     </div>
     <p class="hint">조작: 마우스 드래그 / 손가락 / ← → 키 · 사격은 자동</p>
   </section>
@@ -56,11 +59,24 @@
     <button class="btn btn-back" data-back>← 기지로</button>
   </section>
 
-  <!-- 구역 선택 -->
+  <!-- 챕터 선택 -->
   <section id="screen-stages" class="screen hidden">
-    <h2 class="title small">구역 선택</h2>
-    <div id="stage-list" class="stage-list"></div>
+    <h2 class="title small">챕터 선택</h2>
+    <p class="hint" id="chapter-progress">0 / 33 챕터</p>
+    <div id="stage-list" class="chapter-list"></div>
     <button class="btn btn-back" data-back>← 기지로</button>
+  </section>
+
+  <!-- 엔딩 -->
+  <section id="screen-ending" class="screen hidden">
+    <h2 class="title">고철 군단 격파!</h2>
+    <div class="ending-art">🎖️</div>
+    <div id="ending-lines" class="result-lines"></div>
+    <p class="ending-text">
+      33개 챕터를 지나 마지막 대장 로봇까지 부쉈다.<br />
+      부대는 집으로 돌아간다. 잘 싸웠다!
+    </p>
+    <button id="btn-ending-home" class="btn btn-primary btn-big">🏠 기지로</button>
   </section>
 
   <!-- 결과 -->
@@ -81,9 +97,13 @@
 <script src="src/squad.js"></script>
 <script src="src/gates.js"></script>
 <script src="src/stage.js"></script>
+<script src="src/survival.js"></script>
+<script src="src/boss.js"></script>
 <script src="src/run.js"></script>
 <script src="src/fx.js"></script>
+<script src="vendor/three.min.js"></script>
 <script src="src/render.js"></script>
+<script src="src/render3d.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>

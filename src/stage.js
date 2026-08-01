@@ -1,4 +1,8 @@
-/* 구역 구성 생성 — 시드 고정이라 같은 구역은 항상 같은 코스가 나온다. */
+/* 챕터 코스 생성 — 시드 고정이라 같은 챕터는 항상 같은 코스가 나온다.
+ *
+ * 챕터 번호는 1..33 (한 구역에 3챕터). 1·2챕터는 코스를 끝까지 버티면 돌파,
+ * 3챕터는 그 구역의 대장 로봇을 잡아야 돌파다. 33챕터를 모두 깨면 최종 결전이 열린다.
+ */
 (function (global) {
   'use strict';
   const LW = (global.LW = global.LW || {});
@@ -7,24 +11,38 @@
   const FIRST_GATE = 26;
 
   /**
-   * @returns {{stage:number, name:string, theme:object, length:number, bossY:number,
-   *            events:Array, enemyHpMult:number}}
+   * @param chapter 전체 챕터 번호 1..33
+   * @returns {{chapter:number, zone:number, part:number, stage:number, name:string, theme:object,
+   *            length:number, bossY:number, hasBoss:boolean, events:Array, enemyHpMult:number}}
    */
-  function build(stage, startCount) {
+  function build(chapter, startCount, opts) {
     const cfg = LW.config;
-    const rng = LW.util.makeRng(stage * 9176 + 31);
-    const theme = cfg.stageTheme(stage);
-    const length = Math.round(cfg.scaling.length(stage));
-    const hpMult = cfg.scaling.enemyHp(stage);
-    const countMult = cfg.scaling.enemyCount(stage);
+    const isFinal = !!(opts && opts.final);
+    const zone = cfg.zoneOf(chapter);
+    const part = cfg.partOf(chapter);
+    // 구역 안에서도 챕터마다 조금씩 어려워진다 (1, 1.33, 1.67, 2, ...)
+    const diff = isFinal ? cfg.zoneCount + 1 : cfg.difficultyOf(chapter);
+    const rng = LW.util.makeRng(chapter * 9176 + part * 577 + 31);
+    const theme = isFinal ? cfg.finalStage : cfg.stageTheme(zone);
+    const hasBoss = isFinal || cfg.hasBossAt(chapter);
+    const lengthMult = isFinal
+      ? cfg.finalStage.lengthMult
+      : cfg.chapters.lengthMult[part - 1];
+    const length = Math.round(cfg.scaling.length(diff) * lengthMult);
+    const hpMult = cfg.scaling.enemyHp(diff);
+    const countMult = cfg.scaling.enemyCount(diff);
     const bossY = length;
     const events = [];
+    const stage = diff; // 게이트·드럼통 스케일에 쓰는 난이도 값
 
     // 게이트 값 스케일을 잡기 위한 "예상 병력" 추적치. 실제 플레이와 정확히 같을 필요는 없다.
     let expected = Math.max(4, startCount);
 
-    let fakeLeft = stage >= 3 ? 1 : 0; // 페이크 문은 구역당 최대 1개
-    let bothGoodLeft = stage >= 2 ? 2 : 1; // 둘 다 초록인 문은 구역당 최대 2개
+    // 미니건 병사는 챕터당 1명 (보스 챕터·최종은 2명 — 정면 싸움에 힘이 된다)
+    let gunnersLeft = isFinal ? 2 : hasBoss ? 2 : 1;
+
+    let fakeLeft = zone >= 3 || isFinal ? 1 : 0; // 페이크 문은 챕터당 최대 1개
+    let bothGoodLeft = zone >= 2 || isFinal ? 2 : 1; // 둘 다 초록인 문은 챕터당 최대 2개
 
     for (let y = FIRST_GATE; y < bossY - 30; y += GATE_GAP) {
       const allowFake = fakeLeft > 0 && y > FIRST_GATE;
@@ -40,8 +58,8 @@
       const best = Math.max(LW.gates.apply(expected, pair[0]), LW.gates.apply(expected, pair[1]));
       expected = Math.max(3, best);
 
-      // 첫 블록은 몸풀기 — 게이트를 두 번 지나 병력을 불린 뒤부터 적이 나온다.
-      const waves = y === FIRST_GATE ? 0 : rng.int(2, 3);
+      // 아주 첫 챕터의 첫 블록만 몸풀기 — 그 뒤로는 처음부터 적이 나온다.
+      const waves = y === FIRST_GATE && chapter === 1 ? 0 : rng.int(2, 3);
       for (let w = 0; w < waves; w++) {
         const wy = y + 12 + w * 11 + rng.range(-1.5, 1.5);
         if (wy > bossY - 8) break;
@@ -59,12 +77,12 @@
           type: 'barrel',
           y: by,
           x: LW.util.clamp(bx + i * rng.range(-2.2, 2.2), -3.4, 3.4),
-          hp: Math.round(cfg.barrel.hp * (1 + 0.12 * (stage - 1))),
+          hits: Math.min(cfg.barrel.maxHits, cfg.barrel.hits + Math.floor((zone - 1) / 2)),
         });
       }
 
       // 가끔 바리케이드(부수거나 피해야 함)와 부품 뭉치
-      if (rng.chance(0.45) && stage >= 2) {
+      if (rng.chance(0.45) && diff >= 2) {
         events.push({
           type: 'barricade',
           y: y + 30 + rng.range(-2, 2),
@@ -77,9 +95,19 @@
         const cy = y + 6 + rng.range(0, 6);
         for (let i = 0; i < 4; i++) events.push({ type: 'coin', y: cy + i * 1.5, x: cx });
       }
+
+      // 미니건 병사 — 길에 서서 기다린다. 지나가면 합류해 함께 쏜다.
+      if (gunnersLeft > 0 && rng.chance(0.55)) {
+        gunnersLeft--;
+        events.push({
+          type: 'gunner',
+          y: y + 20 + rng.range(-3, 3),
+          x: rng.range(-3.2, 3.2),
+        });
+      }
     }
 
-    // 보스 직전 마지막 선택 — 여기서 문 하나가 승패를 가른다.
+    // 보스(또는 코스 끝) 직전 마지막 선택 — 여기서 문 하나가 승패를 가른다.
     events.push({
       type: 'gate',
       y: bossY - 22,
@@ -89,16 +117,29 @@
     events.sort((a, b) => a.y - b.y);
 
     return {
-      stage: stage,
-      name: cfg.stageName(stage),
+      chapter: isFinal ? cfg.chapterCount + 1 : chapter,
+      zone: zone,
+      part: part,
+      stage: zone, // 예전 이름 (구역) — 세이브·UI 호환용
+      isFinal: isFinal,
+      hasBoss: hasBoss,
+      name: isFinal ? cfg.finalStage.name : cfg.chapterName(chapter),
       theme: theme,
       length: length,
       bossY: bossY,
       events: events,
       enemyHpMult: hpMult,
-      bossHp: Math.round(cfg.boss.hp * cfg.scaling.bossHp(stage)),
-      rewardBase: Math.round(cfg.scaling.reward(stage)),
+      // 대장 로봇은 "그 구역의 대장" 이라 구역 기준으로 단단해진다 (챕터 소수값이 아니라)
+      bossHp: Math.round(
+        cfg.boss.hp * cfg.scaling.bossHp(zone) * (isFinal ? cfg.finalStage.bossHpMult : 1)
+      ),
+      rewardBase: Math.round(cfg.scaling.reward(diff) * (isFinal ? 3 : 1)),
     };
+  }
+
+  /** 최종 결전 코스 — 33챕터를 모두 깬 뒤 열린다. */
+  function buildFinal(startCount) {
+    return build(LW.config.chapterCount, startCount, { final: true });
   }
 
   function makeWave(rng, y, kinds, expected, countMult, stage) {
@@ -115,5 +156,5 @@
     return { type: 'wave', y: y, entries: entries };
   }
 
-  LW.stage = { build, GATE_GAP, FIRST_GATE };
+  LW.stage = { build, buildFinal, GATE_GAP, FIRST_GATE };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

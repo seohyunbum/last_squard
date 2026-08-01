@@ -268,6 +268,14 @@ html, body {
   box-shadow: 0 8px 22px rgba(245, 166, 35, 0.32);
 }
 
+/* 버티기 모드 — 출동 버튼과 헷갈리지 않게 청록 계열로 구분한다 */
+.btn-survival {
+  background: linear-gradient(180deg, #58e2c2, #1f9f92);
+  color: #05231f;
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 8px 22px rgba(41, 190, 170, 0.3);
+}
+
 .btn-big {
   font-size: 20px;
   padding: 16px 40px;
@@ -349,6 +357,104 @@ html, body {
 .stage-card .sc-no { font-size: 18px; font-weight: 900; }
 .stage-card .sc-name { font-size: 11px; color: var(--ink-dim); }
 .stage-card .sc-stars { font-size: 11px; margin-top: 3px; letter-spacing: 1px; }
+
+/* 미니건 병사 칩 — 연사 칩과 색을 구분한다 */
+.gunner-chip {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 800;
+  color: #d8f4ff;
+  background: rgba(24, 62, 82, 0.92);
+  border: 1px solid rgba(120, 220, 255, 0.5);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* ---------- 챕터 목록 (구역별 3개) ---------- */
+
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.zone-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+
+.zone-row.locked { opacity: 0.45; }
+
+.zone-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.zone-label .zl-no { font-size: 13px; font-weight: 900; }
+.zone-label .zl-name { font-size: 11px; color: var(--ink-dim); }
+
+.chapter-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+
+.chapter-card {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(28, 44, 72, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: 46px;
+  padding: 6px 0 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.chapter-card.locked { opacity: 0.38; cursor: default; }
+.chapter-card.cleared { border-color: rgba(69, 217, 122, 0.65); }
+.chapter-card.boss { background: rgba(72, 34, 48, 0.95); }
+.chapter-card .cc-no { font-size: 15px; font-weight: 900; }
+.chapter-card .cc-stars { font-size: 9px; letter-spacing: 0.5px; color: #ffd05e; }
+
+.final-card {
+  font: inherit;
+  color: #24170a;
+  background: linear-gradient(180deg, #ffd85e, #f5a623);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+  padding: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  width: 100%;
+}
+
+.final-card.locked {
+  background: rgba(28, 44, 72, 0.95);
+  color: var(--ink-dim);
+  cursor: default;
+}
+
+.final-card .fc-sub { display: block; font-size: 11px; font-weight: 700; margin-top: 3px; }
+
+/* ---------- 엔딩 ---------- */
+
+.ending-art { font-size: 64px; line-height: 1; margin: 4px 0; }
+
+.ending-text {
+  font-size: 13px;
+  color: var(--ink-dim);
+  text-align: center;
+  line-height: 1.7;
+  margin: 4px 0 2px;
+}
 
 /* ---------- 결과 ---------- */
 

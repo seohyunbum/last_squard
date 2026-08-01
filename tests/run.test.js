@@ -88,8 +88,8 @@ test('병력이 0 이 되면 패배로 끝난다', () => {
   assert.ok(result.coins > 0, '패배해도 약간의 부품은 준다');
 });
 
-test('코스 끝까지 가면 보스 단계로 넘어가고 전진이 멈춘다', () => {
-  const run = newRun(1);
+test('보스 챕터는 코스 끝에서 보스 단계로 넘어가고 전진이 멈춘다', () => {
+  const run = newRun(3); // 1구역 3챕터 = 대장 로봇
   const reached = simulateUntil(LW, run, (r) => r.phase === 'boss', 90, pilot.smart);
   assert.ok(reached, '보스까지 못 갔다: ' + run.phase);
   assert.ok(run.boss, '보스가 없다');
@@ -100,9 +100,9 @@ test('코스 끝까지 가면 보스 단계로 넘어가고 전진이 멈춘다'
 });
 
 test('보스를 부수면 승리하고 별·보상이 계산된다', () => {
-  const run = newRun(1, { loot: 3 });
+  const run = newRun(3, { loot: 3 });
   simulate(LW, run, 200, pilot.smart);
-  assert.equal(run.phase, 'won', '게이트를 잘 고르면 1구역은 이겨야 한다');
+  assert.equal(run.phase, 'won', '게이트를 잘 고르면 1구역 3챕터는 이겨야 한다');
   const result = LW.run.result(run);
   assert.equal(result.win, true);
   assert.ok(result.stars >= 1 && result.stars <= 3);
