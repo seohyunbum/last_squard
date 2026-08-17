@@ -19,6 +19,10 @@ html, body {
   color: var(--ink);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
+  /* 아이가 화면을 마구 문질러도 당겨서 새로고침되거나 글자가 잡히지 않게 */
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #app {
@@ -47,7 +51,8 @@ html, body {
   pointer-events: none;
   display: flex;
   flex-direction: column;
-  padding: 14px 16px;
+  padding: calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(14px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 .hud-top {
@@ -197,7 +202,8 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
   background: radial-gradient(circle at 50% 30%, rgba(30, 52, 88, 0.95), rgba(4, 8, 14, 0.97));
   overflow-y: auto;
 }
