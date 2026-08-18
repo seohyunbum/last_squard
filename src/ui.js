@@ -47,7 +47,7 @@
       resultHome: $('btn-result-home'),
     };
 
-    const screens = [el.home, el.upgrade, el.stages, el.result, el.ending];
+    const screens = [el.home, el.upgrade, el.stages, el.result, el.ending, $('screen-install')];
     let lastCount = -1;
     let lastBossRatio = -1;
     let lastSeconds = -1;

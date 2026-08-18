@@ -50,6 +50,29 @@
       <button id="btn-stages" class="btn">🗺️ 챕터 선택</button>
     </div>
     <p class="hint">조작: 마우스 드래그 / 손가락 / ← → 키 · 사격은 자동</p>
+    <button id="btn-install" class="btn btn-install hidden">📲 홈 화면에 앱으로 추가</button>
+  </section>
+
+  <!-- 설치 안내 (브라우저가 설치 창을 안 내줄 때) -->
+  <section id="screen-install" class="screen hidden">
+    <h2 class="title small">홈 화면에 앱으로 추가</h2>
+    <p class="subtitle">추가하면 아이콘으로 바로 열리고, 인터넷이 없어도 실행된다</p>
+    <div class="install-steps">
+      <div class="install-card">
+        <div class="install-head">📱 아이폰 · 사파리</div>
+        <ol><li>아래쪽 <b>공유</b> 버튼 (⬆️ 네모에 화살표)</li><li><b>홈 화면에 추가</b></li><li>오른쪽 위 <b>추가</b></li></ol>
+      </div>
+      <div class="install-card">
+        <div class="install-head">🤖 안드로이드 · 크롬</div>
+        <ol><li>오른쪽 위 <b>⋮</b> 버튼</li><li><b>앱 설치</b> 또는 <b>홈 화면에 추가</b></li><li><b>설치</b></li></ol>
+      </div>
+      <div class="install-card install-warn">
+        <div class="install-head">⚠️ 카카오톡 · 네이버 안에서 열었다면</div>
+        <p>앱 안에 들어 있는 브라우저에는 설치 항목이 <b>아예 없다</b>. 오른쪽 아래 메뉴에서
+        <b>다른 브라우저로 열기</b>를 눌러 사파리 · 크롬으로 옮긴 뒤 다시 해야 한다.</p>
+      </div>
+    </div>
+    <button id="btn-install-close" class="btn">알겠어요</button>
   </section>
 
   <!-- 업그레이드 -->
@@ -106,6 +129,7 @@
 <script src="src/render.js"></script>
 <script src="src/render3d.js"></script>
 <script src="src/audio.js"></script>
+<script src="src/install.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>
 </body>

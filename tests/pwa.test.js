@@ -75,6 +75,15 @@ test('서비스 워커 — 배포마다 캐시 이름이 달라진다', () => {
   assert.ok(!/const VERSION = '__BUILD_ID__'/.test(sw), '자리표시자가 그대로 나갔다');
 });
 
+test('기지 화면에 설치 버튼과 안내가 실린다', () => {
+  const html = read('index.html');
+  assert.match(html, /id="btn-install"/, '설치 버튼이 없다');
+  assert.match(html, /id="screen-install"/, '설치 안내 화면이 없다');
+  // 실제로 여기서 막히는 사람이 가장 많다 — 안내에서 빼면 안 된다.
+  assert.match(html, /카카오톡/, '인앱 브라우저 주의가 안내에 없다');
+  assert.match(html, /LW\.install\.setup\(\)/, '설치 버튼을 켜는 호출이 없다');
+});
+
 test('단일 파일(USB용)에는 앱 태그가 붙지 않는다', () => {
   // 외부 파일을 못 읽는 file:// 용이라, 매니페스트를 붙이면 깨진 참조만 남는다.
   const single = fs.readFileSync(path.join(ROOT, 'dist', 'last-squad.html'), 'utf8');

@@ -261,5 +261,6 @@
 
   resize();
   goHome();
+  LW.install.setup(); // 홈 화면에 앱으로 추가하는 버튼 (설치 대상이 아니면 스스로 숨는다)
   global.requestAnimationFrame(frame);
 })(typeof globalThis !== 'undefined' ? globalThis : this);

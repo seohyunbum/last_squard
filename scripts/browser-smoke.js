@@ -61,6 +61,17 @@ async function main() {
     check('기지 화면이 보인다', await page.isVisible('#screen-home'));
     check('제목이 렌더된다', (await page.textContent('.title')).includes('라스트 스쿼드'));
 
+    // 홈 화면에 앱으로 추가 — 브라우저 메뉴를 안 찾아도 되게 게임 안에 버튼을 둔다
+    check('설치 버튼이 기지 화면에 보인다', await page.isVisible('#btn-install'));
+    await page.click('#btn-install');
+    await wait(300);
+    check('설치 안내가 열린다', await page.isVisible('#screen-install'));
+    check('인앱 브라우저 주의가 안내에 있다',
+      (await page.textContent('#screen-install')).includes('카카오톡'));
+    await page.click('#btn-install-close');
+    await wait(200);
+    check('설치 안내가 닫힌다', !(await page.isVisible('#screen-install')));
+
     // 전투 시작
     await page.click('#btn-play');
     await wait(1200);
