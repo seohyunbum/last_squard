@@ -6,7 +6,7 @@
  * 배포할 때마다 캐시 이름이 달라져서 옛 파일이 남지 않는다.
  */
 
-const VERSION = 'b70752dffb7c';
+const VERSION = 'ca6d46ac62d7';
 const CACHE = 'last-squad-' + VERSION;
 
 const SHELL = [

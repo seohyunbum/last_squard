@@ -304,6 +304,50 @@ html, body {
 
 .hint { color: var(--ink-dim); font-size: 12px; margin: 4px 0 0; text-align: center; }
 
+/* ---------- 홈 화면에 앱으로 추가 ---------- */
+
+/* 출동 버튼과 경쟁하지 않게 조용한 색으로. 아이가 아니라 부모가 한 번 누르는 버튼이다. */
+.btn-install {
+  margin-top: 2px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  background: rgba(20, 32, 54, 0.9);
+  border-style: dashed;
+}
+
+/* 다른 화면 위에 겹쳐 뜨는 화면이라 배경이 비치면 글자가 겹쳐 읽기 어렵다 */
+#screen-install { background: #070d18; }
+
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.install-card {
+  text-align: left;
+  background: rgba(16, 26, 44, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.install-head { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.install-card ol { margin: 0; padding-left: 20px; }
+.install-card li { font-size: 13px; line-height: 1.75; color: var(--ink-dim); }
+.install-card li b, .install-card p b { color: var(--ink); }
+.install-card p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--ink-dim); }
+
+/* 카카오톡·네이버 인앱 브라우저 — 실제로 여기서 막히는 경우가 가장 많다 */
+.install-warn {
+  border-color: rgba(255, 207, 74, 0.45);
+  background: rgba(50, 38, 12, 0.75);
+}
+
 .coin-line { font-size: 15px; color: var(--ink-dim); }
 .coin-line b { color: var(--accent); font-size: 18px; }
 
@@ -642,6 +686,29 @@ if (typeof document !== "undefined" && shouldPlaySeoIdent(location.search, navig
       <button id="btn-stages" class="btn">🗺️ 챕터 선택</button>
     </div>
     <p class="hint">조작: 마우스 드래그 / 손가락 / ← → 키 · 사격은 자동</p>
+    <button id="btn-install" class="btn btn-install hidden">📲 홈 화면에 앱으로 추가</button>
+  </section>
+
+  <!-- 설치 안내 (브라우저가 설치 창을 안 내줄 때) -->
+  <section id="screen-install" class="screen hidden">
+    <h2 class="title small">홈 화면에 앱으로 추가</h2>
+    <p class="subtitle">추가하면 아이콘으로 바로 열리고, 인터넷이 없어도 실행된다</p>
+    <div class="install-steps">
+      <div class="install-card">
+        <div class="install-head">📱 아이폰 · 사파리</div>
+        <ol><li>아래쪽 <b>공유</b> 버튼 (⬆️ 네모에 화살표)</li><li><b>홈 화면에 추가</b></li><li>오른쪽 위 <b>추가</b></li></ol>
+      </div>
+      <div class="install-card">
+        <div class="install-head">🤖 안드로이드 · 크롬</div>
+        <ol><li>오른쪽 위 <b>⋮</b> 버튼</li><li><b>앱 설치</b> 또는 <b>홈 화면에 추가</b></li><li><b>설치</b></li></ol>
+      </div>
+      <div class="install-card install-warn">
+        <div class="install-head">⚠️ 카카오톡 · 네이버 안에서 열었다면</div>
+        <p>앱 안에 들어 있는 브라우저에는 설치 항목이 <b>아예 없다</b>. 오른쪽 아래 메뉴에서
+        <b>다른 브라우저로 열기</b>를 눌러 사파리 · 크롬으로 옮긴 뒤 다시 해야 한다.</p>
+      </div>
+    </div>
+    <button id="btn-install-close" class="btn">알겠어요</button>
   </section>
 
   <!-- 업그레이드 -->
@@ -4908,6 +4975,68 @@ console.warn( 'Scripts "build/three.js" and "build/three.min.js" are deprecated 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
+/* 홈 화면에 앱으로 추가하기 — 기지 화면의 설치 버튼.
+ *
+ * 브라우저 메뉴를 찾아 들어가는 걸 아이도 부모도 못 찾기 쉬워서, 게임 안에 버튼을 둔다.
+ * 안드로이드 크롬은 설치 창을 바로 띄울 수 있고(beforeinstallprompt), 아이폰 사파리는
+ * 그런 API 가 없어 손으로 하는 순서를 그림처럼 알려 준다.
+ *
+ * 기기 판별(UA 문자열)은 하지 않는다 — 브라우저마다 제각각이라 틀리기 쉽다. 대신
+ * "설치 창을 띄울 수 있으면 띄우고, 없으면 안내"로 갈린다. 어느 쪽이든 길이 남는다. */
+(function (global) {
+  'use strict';
+  const LW = (global.LW = global.LW || {});
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  /** 이미 홈 화면 앱으로 실행 중인가 (그렇다면 설치 버튼을 보일 이유가 없다) */
+  function running() {
+    const standalone = global.matchMedia && global.matchMedia('(display-mode: standalone)').matches;
+    const fullscreen = global.matchMedia && global.matchMedia('(display-mode: fullscreen)').matches;
+    return Boolean(standalone || fullscreen || global.navigator.standalone);
+  }
+
+  function setup() {
+    const btn = $('btn-install');
+    const guide = $('screen-install');
+    if (!btn || !guide) return;
+
+    // file:// 로 연 단일 파일은 설치 대상이 아니다. 버튼을 숨겨 둔다.
+    if (!global.location.protocol.startsWith('http')) return;
+    if (running()) return;
+
+    let prompt = null; // 크롬이 넘겨주는 설치 창 (있으면 바로 띄운다)
+    global.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // 브라우저가 알아서 띄우는 배너를 막고, 버튼을 눌렀을 때 띄운다
+      prompt = e;
+    });
+
+    global.addEventListener('appinstalled', () => {
+      prompt = null;
+      btn.classList.add('hidden');
+      guide.classList.add('hidden');
+    });
+
+    btn.classList.remove('hidden');
+    btn.addEventListener('click', async () => {
+      if (prompt) {
+        prompt.prompt();
+        const choice = await prompt.userChoice.catch(() => null);
+        prompt = null; // 설치 창은 한 번만 쓸 수 있다
+        if (choice && choice.outcome === 'accepted') return;
+      }
+      guide.classList.remove('hidden'); // 설치 창이 없거나 거절했으면 손으로 하는 순서를 보여 준다
+    });
+
+    $('btn-install-close').addEventListener('click', () => guide.classList.add('hidden'));
+  }
+
+  LW.install = { setup, running };
+})(window);
+</script>
+<script>
 /* DOM 화면·HUD. 게임 로직은 여기 두지 않는다 (콜백으로만 알린다). */
 (function (global) {
   'use strict';
@@ -4957,7 +5086,7 @@ console.warn( 'Scripts "build/three.js" and "build/three.min.js" are deprecated 
       resultHome: $('btn-result-home'),
     };
 
-    const screens = [el.home, el.upgrade, el.stages, el.result, el.ending];
+    const screens = [el.home, el.upgrade, el.stages, el.result, el.ending, $('screen-install')];
     let lastCount = -1;
     let lastBossRatio = -1;
     let lastSeconds = -1;
@@ -5562,6 +5691,7 @@ console.warn( 'Scripts "build/three.js" and "build/three.min.js" are deprecated 
 
   resize();
   goHome();
+  LW.install.setup(); // 홈 화면에 앱으로 추가하는 버튼 (설치 대상이 아니면 스스로 숨는다)
   global.requestAnimationFrame(frame);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
